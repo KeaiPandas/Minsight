@@ -113,7 +113,7 @@ function updateDemoProgress(meeting) {
   demoProgressText.textContent = `${meeting?.phase || "queued"} | ${meeting?.source_case_id || meeting?.scenario || "ad_hoc"}`;
 }
 
-function renderSummary(summary) {
+function renderSummary(summary, historyDelta) {
   const variants = Object.entries(summary || {}).filter(([variant]) => variant !== "v1");
   if (!variants.length) {
     summaryBoard.className = "summary-board empty";
@@ -122,6 +122,7 @@ function renderSummary(summary) {
   }
   summaryBoard.className = "summary-board";
   summaryBoard.innerHTML = `
+    ${renderV2HistoryHeatmap(historyDelta)}
     <div class="variant-grid">
       ${variants.map(([variant, scores]) => `
         <div class="variant-card">
@@ -468,7 +469,7 @@ async function loadMeetings() {
 async function loadRun(runId) {
   const data = await fetchJson(`/api/run?id=${encodeURIComponent(runId)}`);
   activeRunId = data.run.run_id;
-  renderSummary(data.summary);
+  renderSummary(data.summary, data.summary_history_delta);
   renderCases(data);
     runMeta.textContent = `查看运行 ${data.run.run_id} | 场景=${data.run.scenario || "全部"} | agent=${data.run.v2_impl}`;
   updateProgress(data.run);
@@ -509,7 +510,7 @@ async function deleteRun(runId) {
   await fetchJson(`/api/run?id=${encodeURIComponent(runId)}`, { method: "DELETE" });
   if (activeRunId === runId) {
     activeRunId = null;
-    renderSummary({});
+    renderSummary({}, null);
     renderCases({});
     setStatus(statusPill, "idle", "空闲");
     runMeta.textContent = "运行已删除。";
@@ -641,7 +642,7 @@ async function boot() {
   await loadDemoCases();
   await loadRuns();
   await loadMeetings();
-  renderSummary({});
+  renderSummary({}, null);
   renderCases({});
   renderMinutes(null);
   renderRawOutput(null);

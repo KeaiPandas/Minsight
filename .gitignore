@@ -30,6 +30,7 @@ ENV/
 *.db
 Lab/minsight_lab.sqlite
 Lab/results/
+Core/data/scenarios/real_world_kickoff.json
 
 # Logs and runtime output
 *.log
