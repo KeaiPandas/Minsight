@@ -23,7 +23,7 @@
         </div>
         <div class="topbar-badges">
           <span class="badge badge-dot">真实 LLM</span>
-          <span class="badge">V1 对比 V2</span>
+          <span class="badge">V2 工作流</span>
         </div>
       </div>
     </header>
@@ -31,16 +31,16 @@
     <main class="shell">
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">会议 → 结构化资产</p>
-          <h1>把杂乱的会议，变成结构化资产、待办与证据。</h1>
+          <p class="eyebrow">会议到结构化资产</p>
+          <h1>把会议转写变成纪要、待办、证据和跨会议提醒。</h1>
           <p class="lede">
-            对样例会议或粘贴的转写文本运行 V2 会议工作流，与 V1 基线对比，
-            看会议纪要如何变成可追踪、可回链证据的待办。
+            工作台直接运行 V2 会议工作流，面向业务演示结构化会议资产；
+            基准评测页单独保留 V1 与 V2 的效果对比。
           </p>
           <div class="hero-chips">
             <span class="chip"><span class="chip-dot"></span>证据可回链的纪要</span>
-            <span class="chip"><span class="chip-dot"></span>待办自动闭环</span>
-            <span class="chip"><span class="chip-dot"></span>强模型评审</span>
+            <span class="chip"><span class="chip-dot"></span>待办自动派生</span>
+            <span class="chip"><span class="chip-dot"></span>跨会议重复与反复提示</span>
           </div>
         </div>
         <aside class="hero-panel">
@@ -54,7 +54,7 @@
             <strong>基准实验室</strong>
           </div>
           <div class="hero-panel-note">
-            V2 在单次调用的 V1 之上，加了说话人归一、结构化契约与自修复。
+            V2 使用多 agent 工作流、结构化契约、repair 回环和 evidence 字段支撑可演示闭环。
           </div>
         </aside>
       </section>
@@ -66,7 +66,7 @@
         </button>
         <button class="tab" data-tab="benchmark" role="tab">
           <span class="tab-label">基准评测</span>
-          <span class="tab-sub">给模型打分</span>
+          <span class="tab-sub">V1 vs V2</span>
         </button>
       </nav>
 
@@ -75,7 +75,7 @@
           <div class="panel-head">
             <div>
               <p class="panel-kicker">业务演示</p>
-              <h2>运行一次结构化会议</h2>
+              <h2>运行一次 V2 结构化会议</h2>
             </div>
             <div id="demoStatusPill" class="status-pill idle">空闲</div>
           </div>
@@ -98,7 +98,7 @@
               <textarea id="demoTranscriptInput" class="transcript-input" placeholder="在此粘贴会议转写文本，或载入一个样例会议。"></textarea>
             </label>
 
-            <button id="demoRunButton" class="run-button">运行工作台演示</button>
+            <button id="demoRunButton" class="run-button">运行 V2 工作台演示</button>
           </div>
 
           <div id="demoMeta" class="run-meta"></div>
@@ -110,30 +110,20 @@
           </div>
         </section>
 
-        <section class="results-grid">
-          <article class="score-card">
-            <div class="card-head">
-              <p>最近会议</p>
-              <h3>工作台归档</h3>
-            </div>
-            <div id="meetingList" class="run-list empty">暂无工作台记录。</div>
-          </article>
-
-          <article class="history-card">
-            <div class="card-head">
-              <p>模型差异</p>
-              <h3>V1 对比 V2</h3>
-            </div>
-            <div id="comparisonBoard" class="summary-board empty">运行一次会议，看看 V2 为何比 V1 更稳。</div>
-          </article>
-        </section>
-
         <section class="detail-card">
           <div class="card-head">
             <p>可读纪要</p>
             <h3>结构化会议视图</h3>
           </div>
           <div id="minutesBoard" class="case-table empty">结构化会议纪要会显示在这里。</div>
+        </section>
+
+        <section class="detail-card">
+          <div class="card-head">
+            <p>结构化输出</p>
+            <h3>V2 原始结果</h3>
+          </div>
+          <div id="rawOutputBoard" class="case-table empty">运行会议后，这里显示 V2 的完整输出。</div>
         </section>
 
         <section class="results-grid">
@@ -153,6 +143,14 @@
             <div id="alertsBoard" class="case-table empty">跨会议提示会显示在这里。</div>
           </article>
         </section>
+
+        <section class="detail-card">
+          <div class="card-head">
+            <p>最近会议</p>
+            <h3>工作台归档</h3>
+          </div>
+          <div id="meetingList" class="run-list empty">暂无工作台记录。</div>
+        </section>
       </section>
 
       <section id="benchmarkTab" class="tab-panel">
@@ -160,7 +158,7 @@
           <div class="panel-head">
             <div>
               <p class="panel-kicker">运行控制</p>
-              <h2>启动一次实验室运行</h2>
+              <h2>启动一次 V1 / V2 基准评测</h2>
             </div>
             <div id="statusPill" class="status-pill idle">空闲</div>
           </div>
@@ -171,7 +169,7 @@
               <select id="scenarioSelect"></select>
             </label>
 
-            <button id="runButton" class="run-button">运行实验室</button>
+            <button id="runButton" class="run-button">运行基准评测</button>
           </div>
 
           <div id="runMeta" class="run-meta"></div>

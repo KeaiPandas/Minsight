@@ -1,18 +1,24 @@
-# V1 · 单次调用基线（独立项目）
+# V1 单次调用基线
 
-同事的原始方案：拼一个 prompt → 单次调用大模型 → 一次 `json.loads`（naive，无容错）。
+V1 保持题目中的 naive 实现思路：
+
+1. 拼接一个会议纪要 prompt
+2. 单次调用 LLM
+3. 直接 `json.loads(response)`
+4. 不做 schema 校验、repair、证据补全或字段归一化
 
 ```bash
-python v1/run.py --scenario decision_reversal   # 从项目根运行
+python v1/run.py --scenario decision_reversal
 ```
 
-运行前需先在 `Core/.env` 中配置真实 LLM profile；项目已移除离线模拟链路。
+运行前需要在 `Core/.env` 配置真实 LLM profile。项目已移除离线模拟链路。
 
-## 已知缺陷（评测中可复现）
-- 四类信息耦合在一个 prompt，长文本注意力稀释 → 漏抽；
-- 无说话人/角色归一 → 参会人用昵称、负责人错配；
-- 缺失截止时间时臆造日期（幻觉）；
-- 决策反复时取到被推翻的旧结论；
-- `json.loads` 无兜底，输出带围栏即整场零产出。
+## 已知缺陷
 
-这些正是 V2 要针对性解决的问题，详见 `../v2/`。
+- 输出只要带 Markdown code fence 或解释性文字，`json.loads` 就会失败。
+- 四类信息混在一次 prompt 中，长转写更容易漏抽。
+- 没有说话人归一化，参会人、负责人可能使用昵称或角色名。
+- 没有 evidence 字段，无法追溯待办和决策来自哪句原文。
+- 没有 repair 回环，格式失败会直接暴露为抽取错误。
+
+这些缺陷是 V2 LangGraph 多 agent 工作流需要解决的问题。

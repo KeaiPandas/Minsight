@@ -2,7 +2,6 @@ const tabs = document.querySelectorAll(".tab");
 const tabPanels = document.querySelectorAll(".tab-panel");
 
 const scenarioSelect = document.getElementById("scenarioSelect");
-const plainToggle = document.getElementById("plainToggle");
 const runButton = document.getElementById("runButton");
 const statusPill = document.getElementById("statusPill");
 const runMeta = document.getElementById("runMeta");
@@ -22,8 +21,8 @@ const demoMeta = document.getElementById("demoMeta");
 const demoProgressBar = document.getElementById("demoProgressBar");
 const demoProgressText = document.getElementById("demoProgressText");
 const meetingList = document.getElementById("meetingList");
-const comparisonBoard = document.getElementById("comparisonBoard");
 const minutesBoard = document.getElementById("minutesBoard");
+const rawOutputBoard = document.getElementById("rawOutputBoard");
 const tasksBoard = document.getElementById("tasksBoard");
 const alertsBoard = document.getElementById("alertsBoard");
 
@@ -37,7 +36,7 @@ async function fetchJson(url, options) {
   const response = await fetch(url, options);
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || "Request failed");
+    throw new Error(data.error || "请求失败");
   }
   return data;
 }
@@ -48,7 +47,11 @@ function setStatus(element, kind, text) {
 }
 
 function formatScore(score) {
-  return (score * 100).toFixed(1) + "%";
+  return `${((score || 0) * 100).toFixed(1)}%`;
+}
+
+function formatJson(value) {
+  return JSON.stringify(value ?? {}, null, 2);
 }
 
 function escapeHtml(value) {
@@ -60,13 +63,18 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function renderJsonDetails(title, value, open = false) {
+  return `
+    <details class="json-details" ${open ? "open" : ""}>
+      <summary>${escapeHtml(title)}</summary>
+      <pre class="json-viewer">${escapeHtml(formatJson(value))}</pre>
+    </details>
+  `;
+}
+
 function activateTab(name) {
-  tabs.forEach((tab) => {
-    tab.classList.toggle("active", tab.dataset.tab === name);
-  });
-  tabPanels.forEach((panel) => {
-    panel.classList.toggle("active", panel.id === `${name}Tab`);
-  });
+  tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === name));
+  tabPanels.forEach((panel) => panel.classList.toggle("active", panel.id === `${name}Tab`));
 }
 
 tabs.forEach((tab) => {
@@ -78,16 +86,13 @@ function updateProgress(run) {
   const completed = run?.completed_tasks || 0;
   const pct = total > 0 ? Math.min(100, (completed / total) * 100) : 0;
   progressBar.style.width = `${pct}%`;
-  const phase = run?.phase || "queued";
-  const caseId = run?.current_case_id || "-";
-  const variant = run?.current_variant || "-";
-  progressText.textContent = `${phase} | ${completed}/${total} | ${caseId} | ${variant}`;
+  progressText.textContent = `${run?.phase || "queued"} | ${completed}/${total} | ${run?.current_case_id || "-"} | ${run?.current_variant || "-"}`;
 }
 
 function updateDemoProgress(meeting) {
-  const phase = meeting?.phase || "queued";
-  demoProgressBar.style.width = meeting?.status === "completed" ? "100%" : meeting?.status === "running" ? "66%" : "0%";
-  demoProgressText.textContent = `${phase} | ${meeting?.source_case_id || meeting?.scenario || "ad_hoc"}`;
+  const status = meeting?.status || "queued";
+  demoProgressBar.style.width = status === "completed" ? "100%" : status === "running" ? "66%" : "0%";
+  demoProgressText.textContent = `${meeting?.phase || "queued"} | ${meeting?.source_case_id || meeting?.scenario || "ad_hoc"}`;
 }
 
 function renderSummary(summary) {
@@ -132,20 +137,14 @@ function renderRuns(runs) {
     <div class="history-row ${activeRunId === run.run_id ? "selected" : ""}" data-run-id="${run.run_id}">
       <button class="history-item" data-open-run-id="${run.run_id}">
         <div class="run-id">${run.run_id.slice(0, 8)}</div>
-        <div class="meta">
-          场景：${escapeHtml(run.scenario || "全部")} ｜ v2：${escapeHtml(run.v2_impl)} ｜ ${new Date(run.created_at).toLocaleString()}
-        </div>
+        <div class="meta">场景：${escapeHtml(run.scenario || "全部")} | v2：${escapeHtml(run.v2_impl)} | ${new Date(run.created_at).toLocaleString()}</div>
       </button>
-      <button class="history-delete" data-delete-run-id="${run.run_id}" aria-label="删除运行 ${run.run_id.slice(0, 8)}">
-        删除
-      </button>
+      <button class="history-delete" data-delete-run-id="${run.run_id}" aria-label="删除运行 ${run.run_id.slice(0, 8)}">删除</button>
     </div>
   `).join("");
-
   runList.querySelectorAll("[data-open-run-id]").forEach((button) => {
     button.addEventListener("click", () => loadRun(button.dataset.openRunId));
   });
-
   runList.querySelectorAll("[data-delete-run-id]").forEach((button) => {
     button.addEventListener("click", async (event) => {
       event.stopPropagation();
@@ -158,7 +157,7 @@ function renderCases(data) {
   const cases = data.case_results || [];
   if (!cases.length) {
     caseTable.className = "case-table empty";
-    caseTable.textContent = "运行基准后，这里显示逐条评审结果。";
+    caseTable.textContent = "运行基准后，这里显示逐条评审结果和原始输出。";
     return;
   }
   caseTable.className = "case-table";
@@ -179,7 +178,7 @@ function renderCases(data) {
 
 function renderVariantDetail(item, variant) {
   const entry = item.variants?.[variant];
-  if (!entry?.judgement) {
+  if (!entry) {
     return `
       <section class="variant-card detail-card">
         <h4>${variant.toUpperCase()}</h4>
@@ -194,7 +193,7 @@ function renderVariantDetail(item, variant) {
         <div class="case-variant">${variant.toUpperCase()}</div>
         <div>${entry.created_at ? new Date(entry.created_at).toLocaleString() : ""}</div>
       </div>
-      ${[
+      ${result ? [
         ["参会人", result.participants],
         ["要点", result.key_points],
         ["待办", result.action_items],
@@ -205,12 +204,16 @@ function renderVariantDetail(item, variant) {
           <span>${label}</span>
           <strong>${formatScore(value)}</strong>
         </div>
-      `).join("")}
-      <div class="judge-text">
-        <strong>摘要：</strong> ${escapeHtml(result.summary)}<br/>
-        <strong>优点：</strong> ${escapeHtml((result.strengths || []).join(", ") || "-")}<br/>
-        <strong>问题：</strong> ${escapeHtml((result.issues || []).join(", ") || "-")}
-      </div>
+      `).join("") : `<div class="judge-text">评审尚未完成。</div>`}
+      ${result ? `
+        <div class="judge-text">
+          <strong>摘要：</strong> ${escapeHtml(result.summary)}<br/>
+          <strong>优点：</strong> ${escapeHtml((result.strengths || []).join(", ") || "-")}<br/>
+          <strong>问题：</strong> ${escapeHtml((result.issues || []).join(", ") || "-")}
+        </div>
+      ` : ""}
+      ${renderJsonDetails("查看该版本结构化输出", entry.prediction?.output)}
+      ${renderJsonDetails("查看模型路由记录", entry.prediction?.routing || [])}
     </section>
   `;
 }
@@ -225,45 +228,12 @@ function renderMeetingArchive(meetings) {
   meetingList.innerHTML = meetings.map((meeting) => `
     <button class="history-item ${activeMeetingId === meeting.meeting_id ? "selected-card" : ""}" data-meeting-id="${meeting.meeting_id}">
       <div class="run-id">${escapeHtml(meeting.title)}</div>
-      <div class="meta">
-        ${escapeHtml(meeting.scenario || "ad_hoc")} ｜ ${meeting.status} ｜ ${new Date(meeting.created_at).toLocaleString()}
-      </div>
+      <div class="meta">${escapeHtml(meeting.scenario || "ad_hoc")} | ${meeting.status} | ${new Date(meeting.created_at).toLocaleString()}</div>
     </button>
   `).join("");
   meetingList.querySelectorAll("[data-meeting-id]").forEach((button) => {
     button.addEventListener("click", () => loadMeeting(button.dataset.meetingId));
   });
-}
-
-function renderComparison(comparison) {
-  if (!comparison) {
-    comparisonBoard.className = "summary-board empty";
-    comparisonBoard.textContent = "运行一次会议，看看 V2 为何比 V1 更稳。";
-    return;
-  }
-  comparisonBoard.className = "summary-board";
-  comparisonBoard.innerHTML = `
-    <div class="variant-grid">
-      <section class="variant-card">
-        <h4>V1 基线</h4>
-        <div class="metric-row"><span>格式合法</span><strong>${comparison.v1_format_valid ? "是" : "否"}</strong></div>
-        ${Object.entries(comparison.v1_counts || {}).map(([key, value]) => `
-          <div class="metric-row"><span>${key.replaceAll("_", " ")}</span><strong>${value}</strong></div>
-        `).join("")}
-      </section>
-      <section class="variant-card">
-        <h4>V2 工作流</h4>
-        <div class="metric-row"><span>格式合法</span><strong>${comparison.v2_format_valid ? "是" : "否"}</strong></div>
-        ${Object.entries(comparison.v2_counts || {}).map(([key, value]) => `
-          <div class="metric-row"><span>${key.replaceAll("_", " ")}</span><strong>${value}</strong></div>
-        `).join("")}
-      </section>
-    </div>
-    <div class="judge-text">
-      <strong>V2 为何更优：</strong><br/>
-      ${(comparison.highlights || []).map((line) => `• ${escapeHtml(line)}`).join("<br/>")}
-    </div>
-  `;
 }
 
 function renderMinutes(minutes) {
@@ -292,7 +262,7 @@ function renderMinutes(minutes) {
         ${renderMinutesSection("待办", (minutes.action_items || []).map((item) => `
           <div class="evidence-item">
             <strong>${escapeHtml(item.task)}</strong>
-            <span>负责人：${escapeHtml(item.owner || "未指派")} ｜ 截止：${escapeHtml(item.due || "未设置")}</span>
+            <span>负责人：${escapeHtml(item.owner || "未指派")} | 截止：${escapeHtml(item.due || "未设置")}</span>
             <blockquote>${escapeHtml(item.evidence || "无证据")}</blockquote>
           </div>
         `).join(""), "未抽取到待办。")}
@@ -314,6 +284,23 @@ function renderMinutesSection(title, body, emptyText) {
       <h4>${title}</h4>
       ${body || `<div class="judge-text">${emptyText}</div>`}
     </section>
+  `;
+}
+
+function renderRawOutput(output) {
+  if (!output) {
+    rawOutputBoard.className = "case-table empty";
+    rawOutputBoard.textContent = "运行会议后，这里显示 V2 的完整输出。";
+    return;
+  }
+  rawOutputBoard.className = "case-table";
+  rawOutputBoard.innerHTML = `
+    <article class="case-item">
+      <section class="variant-card detail-card">
+        <h4>V2 原始输出</h4>
+        ${renderJsonDetails("展开 V2 JSON", output, true)}
+      </section>
+    </article>
   `;
 }
 
@@ -371,7 +358,7 @@ async function loadScenarios() {
   const data = await fetchJson("/api/scenarios");
   scenarioSelect.innerHTML = `
     <option value="">全部场景</option>
-    ${data.scenarios.map((name) => `<option value="${name}">${name}</option>`).join("")}
+    ${data.scenarios.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("")}
   `;
 }
 
@@ -380,7 +367,7 @@ async function loadDemoCases() {
   demoCases = data.cases || [];
   demoCaseSelect.innerHTML = `
     <option value="">选择一个样例</option>
-    ${demoCases.map((item) => `<option value="${item.case_id}">${item.case_id} | ${item.scenario}</option>`).join("")}
+    ${demoCases.map((item) => `<option value="${escapeHtml(item.case_id)}">${escapeHtml(item.case_id)} | ${escapeHtml(item.scenario)}</option>`).join("")}
   `;
 }
 
@@ -399,7 +386,7 @@ async function loadRun(runId) {
   activeRunId = data.run.run_id;
   renderSummary(data.summary);
   renderCases(data);
-  runMeta.textContent = `查看运行 ${data.run.run_id} ｜ 场景=${data.run.scenario || "全部"} ｜ v2=${data.run.v2_impl}`;
+  runMeta.textContent = `查看运行 ${data.run.run_id} | 场景=${data.run.scenario || "全部"} | v2=${data.run.v2_impl}`;
   updateProgress(data.run);
   if (data.run.status === "completed") {
     setStatus(statusPill, "done", "完成");
@@ -416,11 +403,11 @@ async function loadRun(runId) {
 async function loadMeeting(meetingId) {
   const data = await fetchJson(`/api/demo/meeting?id=${encodeURIComponent(meetingId)}`);
   activeMeetingId = data.meeting.meeting_id;
-  renderComparison(data.comparison);
   renderMinutes(data.minutes);
+  renderRawOutput(data.output || data.variants?.v2);
   renderTasks(data.derived_tasks);
   renderAlerts(data.alerts);
-  demoMeta.textContent = `查看 ${data.meeting.title} ｜ ${data.meeting.scenario || "ad_hoc"} ｜ ${data.meeting.meeting_id}`;
+  demoMeta.textContent = `查看 ${data.meeting.title} | ${data.meeting.scenario || "ad_hoc"} | ${data.meeting.meeting_id}`;
   updateDemoProgress(data.meeting);
   if (data.meeting.status === "completed") {
     setStatus(demoStatusPill, "done", "完成");
@@ -509,17 +496,15 @@ runButton.addEventListener("click", async () => {
     runButton.disabled = true;
     stopPolling();
     setStatus(statusPill, "running", "运行中");
-    runMeta.textContent = "正在用真实 LLM 运行基准，可能需要一会儿。";
+    runMeta.textContent = "正在用真实 LLM 运行 V1 / V2 基准评测，可能需要一会儿。";
     progressBar.style.width = "0%";
     progressText.textContent = "排队中 | 0/0 | - | -";
     const result = await fetchJson("/api/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        scenario: scenarioSelect.value || null,
-      }),
+      body: JSON.stringify({ scenario: scenarioSelect.value || null }),
     });
-    runMeta.textContent = `已启动 ｜ run_id=${result.run_id}`;
+    runMeta.textContent = `已启动 | run_id=${result.run_id}`;
     await pollRun(result.run_id);
   } catch (error) {
     setStatus(statusPill, "error", "出错");
@@ -533,9 +518,9 @@ demoRunButton.addEventListener("click", async () => {
     demoRunButton.disabled = true;
     stopDemoPolling();
     setStatus(demoStatusPill, "running", "运行中");
-    demoMeta.textContent = "正在对该转写运行 V1 与 V2。";
+    demoMeta.textContent = "正在对该转写运行 V2 工作流。";
     demoProgressBar.style.width = "0%";
-    demoProgressText.textContent = "排队中 ｜ 准备输入";
+    demoProgressText.textContent = "排队中 | 准备输入";
     const transcript = demoTranscriptInput.value.trim();
     const caseId = transcript ? null : (demoCaseSelect.value || null);
     const selected = demoCases.find((item) => item.case_id === demoCaseSelect.value);
@@ -549,7 +534,7 @@ demoRunButton.addEventListener("click", async () => {
         scenario: selected?.scenario || null,
       }),
     });
-    demoMeta.textContent = `已启动 ｜ meeting_id=${result.meeting_id}`;
+    demoMeta.textContent = `已启动 | meeting_id=${result.meeting_id}`;
     await pollMeeting(result.meeting_id);
   } catch (error) {
     setStatus(demoStatusPill, "error", "出错");
@@ -564,17 +549,14 @@ async function boot() {
   setStatus(demoStatusPill, "idle", "空闲");
   updateProgress(null);
   updateDemoProgress(null);
-  if (plainToggle) {
-    plainToggle.checked = false;
-    plainToggle.disabled = true;
-    plainToggle.parentElement.title = "Plain mode has been removed. Lab uses the LangGraph V2 extractor only.";
-  }
   await loadScenarios();
   await loadDemoCases();
   await loadRuns();
   await loadMeetings();
-  renderComparison(null);
+  renderSummary({});
+  renderCases({});
   renderMinutes(null);
+  renderRawOutput(null);
   renderTasks(null);
   renderAlerts(null);
 }

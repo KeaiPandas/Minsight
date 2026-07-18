@@ -5,7 +5,7 @@
 1. `Benchmark`
    Run V1 and V2 against the shared scenario set, persist predictions, and score them with the LLM judge.
 2. `Workbench`
-   Run a real transcript or mock case through V1 and V2, persist meeting assets, show readable minutes, evidence, derived tasks, and cross-meeting alerts.
+   Run a real transcript or mock case through V2, persist meeting assets, show readable minutes, evidence, derived tasks, and cross-meeting alerts.
 
 ## Public Seams
 
@@ -30,7 +30,7 @@ Supporting modules:
 The workbench demo closes the business loop that the benchmark view does not:
 
 - transcript input or mock case selection
-- direct V2 execution with side-by-side V1 comparison
+- direct V2 execution for the business-facing demo
 - human-readable meeting minutes
 - evidence display for action items and decisions
 - `action_items -> derived_tasks` persistence

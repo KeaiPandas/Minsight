@@ -148,15 +148,12 @@ class BenchmarkRuntime:
         decisions = store.list_meeting_decisions(meeting_id)
         tasks = store.list_derived_tasks(meeting_id)
         alerts = self._build_cross_meeting_alerts(meeting_id, actions, decisions)
-        variants = {
-            "v1": meeting.get("v1_json") or {},
-            "v2": meeting.get("v2_json") or {},
-        }
+        v2_output = meeting.get("v2_json") or {}
         return {
             "meeting": meeting,
-            "variants": variants,
+            "output": v2_output,
+            "variants": {"v2": v2_output},
             "minutes": self._build_minutes_view(meeting),
-            "comparison": meeting.get("comparison_json") or self._build_comparison(variants["v1"], variants["v2"]),
             "actions": actions,
             "decisions": decisions,
             "derived_tasks": tasks,
@@ -216,7 +213,17 @@ class BenchmarkRuntime:
 
     def _prediction_task(self, case, variant, impl, extractor):
         llm = self.llm_factory()
-        output = extractor(case, llm)
+        try:
+            output = extractor(case, llm)
+        except Exception as exc:
+            output = {
+                "_extract_error": type(exc).__name__,
+                "_error_message": str(exc),
+                "participants": [],
+                "key_points": [],
+                "action_items": [],
+                "decisions": [],
+            }
         return {
             "case_id": case["id"],
             "scenario": case["scenario"],
@@ -245,7 +252,17 @@ class BenchmarkRuntime:
 
     def _extract_variant(self, case, variant, impl, extractor):
         llm = self.llm_factory()
-        output = extractor(case, llm)
+        try:
+            output = extractor(case, llm)
+        except Exception as exc:
+            output = {
+                "_extract_error": type(exc).__name__,
+                "_error_message": str(exc),
+                "participants": [],
+                "key_points": [],
+                "action_items": [],
+                "decisions": [],
+            }
         return {
             "variant": variant,
             "impl": impl,
@@ -257,35 +274,20 @@ class BenchmarkRuntime:
         store = self.store()
         store.update_meeting(meeting_id, status="running", phase="extracting", error_message=None, finished_at=None)
         v2_impl, extract_v2 = self.get_v2_extractor(False)
-        variants = {
-            "v1": ("single-call", self.v1_extractor),
-            "v2": (v2_impl, extract_v2),
-        }
         try:
-            outputs = {}
-            with ThreadPoolExecutor(max_workers=2) as pool:
-                future_map = {
-                    pool.submit(self._extract_variant, case, variant, impl, extractor): variant
-                    for variant, (impl, extractor) in variants.items()
-                }
-                for future in as_completed(future_map):
-                    payload = future.result()
-                    outputs[payload["variant"]] = payload
-
-            v1_output = outputs["v1"]["output"]
-            v2_output = outputs["v2"]["output"]
-            comparison = self._build_comparison(v1_output, v2_output)
+            payload = self._extract_variant(case, "v2", v2_impl, extract_v2)
+            v2_output = payload["output"]
             store.clear_meeting_assets(meeting_id)
             store.update_meeting(
                 meeting_id,
                 phase="persisting",
-                v1_json=v1_output,
+                v1_json=None,
                 v2_json=v2_output,
                 participants_json=v2_output.get("participants", []),
                 key_points_json=v2_output.get("key_points", []),
-                comparison_json=comparison,
+                comparison_json=None,
             )
-            self._persist_demo_assets(store, meeting_id, v1_output, v2_output)
+            self._persist_demo_assets(store, meeting_id, v2_output)
             store.update_meeting(meeting_id, status="completed", phase="completed", finished_at=_timestamp())
             return self.get_demo_meeting_details(meeting_id)
         except Exception as exc:
@@ -308,36 +310,34 @@ class BenchmarkRuntime:
         )
         return self.run_demo_existing(meeting_id=meeting_id, case=case)
 
-    def _persist_demo_assets(self, store, meeting_id, v1_output, v2_output):
-        for variant, payload in (("v1", v1_output), ("v2", v2_output)):
-            for item in payload.get("action_items", []):
-                action_id = store.save_meeting_action(
-                    meeting_id=meeting_id,
-                    variant=variant,
-                    task=item.get("task", ""),
-                    owner=item.get("owner"),
-                    due=item.get("due"),
-                    evidence=item.get("evidence", ""),
-                    duplicate_group=self._task_fingerprint(item.get("task", ""), item.get("owner")),
-                )
-                if variant == "v2":
-                    store.save_derived_task(
-                        meeting_id=meeting_id,
-                        action_id=action_id,
-                        title=item.get("task", ""),
-                        assignee=item.get("owner"),
-                        due_date=item.get("due"),
-                        source_evidence=item.get("evidence", ""),
-                        status="open",
-                    )
-            for item in payload.get("decisions", []):
-                store.save_meeting_decision(
-                    meeting_id=meeting_id,
-                    variant=variant,
-                    decision=item.get("decision", ""),
-                    supersedes=item.get("supersedes"),
-                    evidence=item.get("evidence", ""),
-                )
+    def _persist_demo_assets(self, store, meeting_id, v2_output):
+        for item in v2_output.get("action_items", []):
+            action_id = store.save_meeting_action(
+                meeting_id=meeting_id,
+                variant="v2",
+                task=item.get("task", ""),
+                owner=item.get("owner"),
+                due=item.get("due"),
+                evidence=item.get("evidence", ""),
+                duplicate_group=self._task_fingerprint(item.get("task", ""), item.get("owner")),
+            )
+            store.save_derived_task(
+                meeting_id=meeting_id,
+                action_id=action_id,
+                title=item.get("task", ""),
+                assignee=item.get("owner"),
+                due_date=item.get("due"),
+                source_evidence=item.get("evidence", ""),
+                status="open",
+            )
+        for item in v2_output.get("decisions", []):
+            store.save_meeting_decision(
+                meeting_id=meeting_id,
+                variant="v2",
+                decision=item.get("decision", ""),
+                supersedes=item.get("supersedes"),
+                evidence=item.get("evidence", ""),
+            )
 
     def _build_minutes_view(self, meeting):
         participants = meeting.get("participants_json") or []
@@ -366,8 +366,15 @@ class BenchmarkRuntime:
         def _count(payload, key):
             return len(payload.get(key, []) or [])
 
+        def _format_valid(payload):
+            if payload.get("_extract_error"):
+                return False
+            if "_format_valid" in payload:
+                return bool(payload.get("_format_valid"))
+            return all(isinstance(payload.get(key), list) for key in ("participants", "key_points", "action_items", "decisions"))
+
         highlights = []
-        if not v1_output.get("_format_valid") and v2_output.get("_format_valid"):
+        if not _format_valid(v1_output) and _format_valid(v2_output):
             highlights.append("V1 failed strict parsing while V2 recovered through structured validation.")
         if _count(v2_output, "action_items") > _count(v1_output, "action_items"):
             highlights.append("V2 captured more actionable follow-ups and preserved owners or due dates.")
@@ -376,8 +383,8 @@ class BenchmarkRuntime:
         if not highlights:
             highlights.append("V2 keeps the same four entity types but with stronger validation and evidence support.")
         return {
-            "v1_format_valid": bool(v1_output.get("_format_valid")),
-            "v2_format_valid": bool(v2_output.get("_format_valid")),
+            "v1_format_valid": _format_valid(v1_output),
+            "v2_format_valid": _format_valid(v2_output),
             "v1_counts": {
                 "participants": _count(v1_output, "participants"),
                 "key_points": _count(v1_output, "key_points"),

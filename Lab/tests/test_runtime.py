@@ -119,6 +119,65 @@ class BenchmarkRuntimeTests(unittest.TestCase):
                 1.0,
             )
 
+    def test_runtime_records_extractor_errors_without_failing_run(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "lab.sqlite"
+
+            def fake_cases(_scenario):
+                return [
+                    {
+                        "id": "case-1",
+                        "scenario": "demo",
+                        "transcript": "meeting transcript",
+                        "gold": {"participants": []},
+                    }
+                ]
+
+            def broken_v1(_case, _llm):
+                raise json.JSONDecodeError("Expecting value", "```json", 0)
+
+            def fake_v2(case, _llm):
+                return {
+                    "participants": [],
+                    "key_points": [],
+                    "action_items": [],
+                    "decisions": [],
+                    "case_id": case["id"],
+                }
+
+            def fake_judge(**kwargs):
+                prediction = kwargs["prediction"]
+                failed = bool(prediction.get("_extract_error"))
+                return {
+                    "participants": 0.0 if failed else 1.0,
+                    "key_points": 0.0 if failed else 1.0,
+                    "action_items": 0.0 if failed else 1.0,
+                    "decisions": 0.0 if failed else 1.0,
+                    "overall": 0.0 if failed else 1.0,
+                    "summary": "failed" if failed else "ok",
+                    "strengths": [],
+                    "issues": ["extractor failed"] if failed else [],
+                }
+
+            runtime = BenchmarkRuntime(
+                db_path=str(db_path),
+                results_dir=str(Path(tmpdir) / "results"),
+                load_cases_fn=fake_cases,
+                list_scenarios_fn=lambda: ["demo"],
+                v1_extractor=broken_v1,
+                v2_extractor_factory=lambda plain: ("langgraph", fake_v2),
+                judge_fn=fake_judge,
+                llm_factory=lambda: object(),
+            )
+
+            result = runtime.run_benchmark(scenario="demo")
+            details = runtime.get_run_details(result["run_id"])
+            v1_prediction = details["case_results"][0]["variants"]["v1"]["prediction"]["output"]
+
+            self.assertEqual(details["run"]["status"], "completed")
+            self.assertEqual(v1_prediction["_extract_error"], "JSONDecodeError")
+            self.assertEqual(result["summary"]["v1"]["overall"], 0.0)
+
     def test_demo_run_persists_minutes_tasks_and_duplicate_alerts(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "lab.sqlite"
@@ -136,13 +195,7 @@ class BenchmarkRuntimeTests(unittest.TestCase):
                 return cases
 
             def fake_v1(_case, _llm):
-                return {
-                    "participants": [],
-                    "key_points": [],
-                    "action_items": [],
-                    "decisions": [],
-                    "_format_valid": False,
-                }
+                raise AssertionError("workbench should not run v1")
 
             def fake_v2(_case, _llm):
                 return {
@@ -180,8 +233,9 @@ class BenchmarkRuntimeTests(unittest.TestCase):
             second = runtime.run_demo(title="Review 2", transcript="meeting transcript")
 
             self.assertEqual(first["meeting"]["status"], "completed")
+            self.assertNotIn("comparison", first)
+            self.assertEqual(first["output"]["participants"][0]["name"], "Alice")
             self.assertEqual(first["derived_tasks"][0]["assignee"], "Alice")
-            self.assertTrue(first["comparison"]["highlights"])
             self.assertTrue(any(alert["type"] == "decision_reversal" for alert in first["alerts"]))
             self.assertTrue(any(alert["type"] == "possible_duplicate_action" for alert in second["alerts"]))
 

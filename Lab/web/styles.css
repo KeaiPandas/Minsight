@@ -682,6 +682,47 @@ select:focus,
 }
 .judge-text strong { color: var(--ink); }
 
+.raw-output-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.json-details {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.json-details summary {
+  cursor: pointer;
+  padding: 12px 14px;
+  color: var(--brand-ink);
+  font-size: 13px;
+  font-weight: 700;
+  list-style-position: inside;
+}
+
+.json-details[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.json-viewer {
+  margin: 0;
+  max-height: 380px;
+  overflow: auto;
+  padding: 14px;
+  background: #201b16;
+  color: #f8efe4;
+  font-family: Consolas, "SFMono-Regular", "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* ---------- Minutes ---------- */
 
 .minutes-grid {
@@ -721,6 +762,7 @@ select:focus,
   .controls,
   .demo-controls,
   .minutes-grid,
+  .raw-output-grid,
   .variant-grid {
     grid-template-columns: 1fr;
   }

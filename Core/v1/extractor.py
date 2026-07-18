@@ -1,20 +1,29 @@
 # -*- coding: utf-8 -*-
-"""V1 抽取器：单次调用直出 JSON（基线方案）。
+"""V1 baseline: one prompt, one LLM call, one json.loads.
 
-本质：拼一个 prompt → 单次调用 → 一次 json.loads（naive，无容错、无自修复）。
-缺陷：四类信息耦合、无归一、无校验、无证据、格式一崩即整场零产出。
-prompt 由 prompts/v1_all.txt 配置。
+This intentionally mirrors the assignment-style baseline. It does not use
+schema validation, repair, evidence enrichment, or post-processing.
 """
 
-from shared.schema import safe_json_parse, empty_result
-from shared.prompts import render
+import json
+
+
+def extract_meeting_minutes(transcript: str, llm) -> dict:
+    prompt = f"""你是专业的会议纪要助手。请从以下会议转写文本中提取：
+1. 参会人列表（含角色）
+2. 关键讨论要点
+3. 待办事项（含负责人和截止时间）
+4. 决策结论
+
+要求输出 JSON 格式。
+
+转写文本：
+{transcript}"""
+
+    response = llm.complete(prompt, agent="v1_all")
+    return json.loads(response)
 
 
 def extract_v1(case, llm):
     llm.set_case(case)
-    raw = llm.complete(render("v1", "v1_all", transcript=case["transcript"]), agent="v1_all")
-    data, ok = safe_json_parse(raw, lenient=False)   # naive：不做任何容错
-    if not ok:
-        return empty_result()
-    data["_format_valid"] = True
-    return data
+    return extract_meeting_minutes(case["transcript"], llm)
