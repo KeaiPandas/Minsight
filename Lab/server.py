@@ -75,6 +75,18 @@ def build_handler(runtime):
                     result = runtime.sync_demo_tasks_to_feishu(
                         meeting_id,
                         mode=payload.get("mode") or None,
+                        force=bool(payload.get("force")),
+                        tasklist_id=(payload.get("tasklist_id") or "").strip() or None,
+                    )
+                    return self._send_json(result)
+                if parsed.path == "/api/demo/meeting/sync-decisions-base":
+                    meeting_id = payload.get("meeting_id")
+                    if not meeting_id:
+                        return self._send_json({"error": "missing meeting id"}, status=HTTPStatus.BAD_REQUEST)
+                    result = runtime.sync_demo_decisions_to_feishu_base(
+                        meeting_id,
+                        mode=payload.get("mode") or None,
+                        force=bool(payload.get("force")),
                     )
                     return self._send_json(result)
                 return self._send_json({"error": "not found"}, status=HTTPStatus.NOT_FOUND)

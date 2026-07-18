@@ -686,6 +686,17 @@ select:focus,
   font-size: 12px;
 }
 
+.tasklist-input {
+  min-width: min(360px, 100%);
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+  font: inherit;
+  padding: 12px 14px;
+}
+
 .feishu-link { color: var(--good); font-weight: 600; text-decoration: none; }
 .feishu-link:hover { text-decoration: underline; }
 
@@ -973,6 +984,51 @@ select:focus,
   color: var(--brand-ink);
   font-size: 13px;
   line-height: 1.5;
+}
+
+/* ---------- Feishu Sync ---------- */
+
+.task-sync-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0 8px;
+}
+
+.task-filter {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 12px;
+  transition: border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.task-filter:hover,
+.task-filter.selected-card {
+  border-color: var(--brand);
+  color: var(--brand-ink);
+  transform: translateY(-1px);
+}
+
+.task-filter span {
+  margin-left: 5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sync-badge.skipped {
+  background: #ece8df;
+  color: var(--muted);
+}
+
+.sync-badge.pending {
+  background: #f3efe8;
+  color: var(--ink-soft);
 }
 
 /* ---------- Responsive ---------- */

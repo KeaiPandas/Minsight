@@ -178,6 +178,7 @@ class BenchmarkStoreTests(unittest.TestCase):
             self.assertEqual(meeting["comparison_json"]["highlights"][0], "V2 recovered")
             self.assertEqual(actions[0]["task"], "Ship review doc")
             self.assertEqual(decisions[0]["supersedes"], "Launch Friday")
+            self.assertEqual(decisions[0]["base_sync_status"], "pending")
             self.assertEqual(tasks[0]["assignee"], "Alice")
             self.assertEqual(tasks[0]["sync_status"], "pending")
 
@@ -188,6 +189,8 @@ class BenchmarkStoreTests(unittest.TestCase):
                 external_id="task-guid",
                 external_url="https://example.feishu.cn/task",
                 sync_payload={"summary": "Ship review doc"},
+                assignee_open_id="ou_alice",
+                assignee_resolution_status="resolved",
             )
             synced = store.list_derived_tasks("meeting-1")[0]
 
@@ -196,4 +199,20 @@ class BenchmarkStoreTests(unittest.TestCase):
             self.assertEqual(synced["external_id"], "task-guid")
             self.assertEqual(synced["external_url"], "https://example.feishu.cn/task")
             self.assertEqual(synced["sync_payload"]["summary"], "Ship review doc")
+            self.assertEqual(synced["assignee_open_id"], "ou_alice")
+            self.assertEqual(synced["assignee_resolution_status"], "resolved")
             self.assertIsNotNone(synced["synced_at"])
+
+            store.update_meeting_decision_sync(
+                decisions[0]["id"],
+                provider="feishu_base",
+                sync_status="synced",
+                external_id="rec_decision",
+                external_url="https://example.feishu.cn/base/record",
+                sync_payload={"Decision": "Delay launch"},
+            )
+            synced_decision = store.list_meeting_decisions("meeting-1")[0]
+
+            self.assertEqual(synced_decision["base_sync_status"], "synced")
+            self.assertEqual(synced_decision["base_external_id"], "rec_decision")
+            self.assertEqual(synced_decision["base_sync_payload"]["Decision"], "Delay launch")

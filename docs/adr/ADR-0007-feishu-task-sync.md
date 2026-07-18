@@ -35,6 +35,16 @@ The first supported sync target is Feishu Tasks:
   automatically after every extraction run.
 - Each sync uses `--idempotency-key minsight-derived-task-<id>` so repeated
   clicks for the same local derived task do not create duplicate Feishu tasks.
+- Already synced local tasks are skipped by default. The UI asks for explicit
+  confirmation before sending `force=true` to retry those tasks.
+- Assignee names can be resolved through `lark-cli contact +search-user` only
+  when `MINSIGHT_FEISHU_RESOLVE_ASSIGNEE=true`; a single clear match is passed
+  to `task +create --assignee <open_id>`.
+- A tasklist target can be supplied from `MINSIGHT_FEISHU_TASKLIST_ID` or the
+  workbench UI and is passed to `task +create --tasklist-id`.
+- Meeting decisions sync through a separate `DecisionSink` into Feishu Base via
+  `lark-cli base +record-upsert` when `MINSIGHT_FEISHU_BASE_TOKEN` and
+  `MINSIGHT_FEISHU_DECISIONS_TABLE_ID` are configured.
 
 ## Configuration
 
@@ -56,6 +66,8 @@ by git. Runtime reads `Lab/.env` first, then the repository root `.env`, while
 already-exported shell environment variables keep precedence.
 
 The expected Feishu scope for real task creation is `task:task:write`.
+Assignee resolution is disabled by default. Enabling it requires the additional
+`contact:user:search` scope.
 
 For `MINSIGHT_FEISHU_IDENTITY=user`, `lark-cli auth status` must show a valid
 user token. If only bot/tenant identity is available, run:
@@ -82,6 +94,20 @@ scope enabled in the developer console.
 This lets the workbench show whether a local task is still pending, dry-run
 previewed, synced, or failed.
 
+The workbench renders these states as a filterable task board and shows the
+external task link, external id, sync timestamp, payload, or captured error
+where available.
+
+`meeting_decisions` stores Base sync state separately:
+
+- `base_external_provider`
+- `base_external_id`
+- `base_external_url`
+- `base_sync_status`
+- `base_sync_error`
+- `base_sync_payload`
+- `base_synced_at`
+
 ## Consequences
 
 - Demo safety improves because the default path is dry-run.
@@ -91,15 +117,23 @@ previewed, synced, or failed.
   subprocesses cannot always execute the PowerShell shim directly.
 - CLI startup errors, permission errors, and non-zero exits are persisted as
   task-level `failed` states instead of causing HTTP 500.
-- Assignment is intentionally conservative in this iteration: assignee names are
-  written into the task description, not converted to Feishu members, because
-  real assignment requires reliable open_id/user_id resolution.
+- Repeated sync attempts are safer: the backend skips `synced` tasks unless
+  `force=true`, and forced retries still use the same idempotency key.
+- Assignment is an optional enhancement, disabled by default to keep the demo
+  path on `task:task:write` only. When explicitly enabled, ambiguous, missing,
+  or permission-denied contact lookup results are recorded and the task still
+  syncs without `--assignee`.
+- The provided Base workspace URL is treated as operator context, not as a
+  writable `base_token`. Real decision writes require explicit Base/table
+  configuration to avoid writing to the wrong object.
 
 ## Follow-Ups
 
-- Add optional Feishu contact resolution for assignee names.
-- Add tasklist selection once the target tasklist workflow is stable.
-- Consider syncing decisions to a Feishu document or Base table in a later phase.
+- Add a UI hint for enabling Feishu contact resolution after the user grants
+  `contact:user:search`.
+- Add automatic Base/table bootstrap once the workspace-to-base creation flow is
+  fully confirmed.
+- Add richer tasklist discovery once list/search UX is worth the extra scope.
 
 ## Validation
 
@@ -121,3 +155,10 @@ Manual validation on 2026-07-18:
 - `Lab/.env` set to `MINSIGHT_FEISHU_SYNC_MODE=lark_cli`.
 - `lark-cli task +create --dry-run` produced the expected Feishu Task API body.
 - Workbench "Sync to Feishu" was confirmed successful by the user.
+- A Feishu Base named `Minsight 决策库` was created for decision sync, with a
+  `Decisions` table containing the required decision traceability fields.
+- `lark-cli base +record-upsert --dry-run` produced the expected Feishu Base
+  record API body for the `Decisions` table.
+- Contact lookup failures caused by missing `contact:user:search` were handled
+  by changing assignee resolution into an explicit opt-in enhancement rather
+  than part of the default sync path.

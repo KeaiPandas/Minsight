@@ -110,6 +110,49 @@ class FeishuTaskSinkTests(unittest.TestCase):
         self.assertEqual(command[command.index("--due") + 1], "2026-07-20")
         self.assertEqual(command[command.index("--idempotency-key") + 1], "minsight-derived-task-42")
 
+    def test_lark_cli_sink_uses_resolved_assignee_and_tasklist(self):
+        completed = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=json.dumps({"data": {"task": {"guid": "task-guid"}}}),
+            stderr="",
+        )
+        resolver = Mock(return_value={"status": "resolved", "open_id": "ou_alice", "candidates": [], "error": None})
+        runner = Mock(return_value=completed)
+        sink = LarkCliTaskSink(
+            runner=runner,
+            identity="user",
+            command="lark-cli",
+            assignee_resolver=resolver,
+            tasklist_id="https://applink.feishu.cn/client/todo/task_list?guid=list-guid",
+        )
+
+        result = sink.push_task({"id": 42, "title": "Ship review doc", "assignee": "Alice"})
+
+        command = runner.call_args.args[0]
+        self.assertEqual(command[command.index("--assignee") + 1], "ou_alice")
+        self.assertEqual(command[command.index("--tasklist-id") + 1], "https://applink.feishu.cn/client/todo/task_list?guid=list-guid")
+        self.assertEqual(result["assignee_open_id"], "ou_alice")
+        self.assertEqual(result["assignee_resolution_status"], "resolved")
+
+    def test_lark_cli_sink_records_unresolved_assignee_without_blocking_sync(self):
+        completed = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=json.dumps({"data": {"task": {"guid": "task-guid"}}}),
+            stderr="",
+        )
+        resolver = Mock(return_value={"status": "ambiguous", "open_id": None, "candidates": [{"name": "Alice"}], "error": None})
+        runner = Mock(return_value=completed)
+        sink = LarkCliTaskSink(runner=runner, identity="user", command="lark-cli", assignee_resolver=resolver)
+
+        result = sink.push_task({"id": 42, "title": "Ship review doc", "assignee": "Alice"})
+
+        command = runner.call_args.args[0]
+        self.assertNotIn("--assignee", command)
+        self.assertEqual(result["status"], "synced")
+        self.assertEqual(result["assignee_resolution_status"], "ambiguous")
+
     def test_lark_cli_command_prefers_windows_cmd_shim_when_available(self):
         with patch.object(feishu_tasks, "which") as fake_which:
             fake_which.side_effect = lambda name: "C:/npm/lark-cli.cmd" if name == "lark-cli.cmd" else None
@@ -135,6 +178,28 @@ class FeishuTaskSinkTests(unittest.TestCase):
 
             self.assertIsInstance(sink, LarkCliTaskSink)
             self.assertEqual(sink.identity, "user")
+            self.assertIsNone(sink.assignee_resolver)
+
+    def test_build_task_sink_only_resolves_assignees_when_enabled(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            env_path = Path(tmpdir) / ".env"
+            env_path.write_text(
+                "\n".join(
+                    [
+                        "MINSIGHT_FEISHU_SYNC_MODE=lark_cli",
+                        "MINSIGHT_FEISHU_IDENTITY=user",
+                        "MINSIGHT_FEISHU_RESOLVE_ASSIGNEE=true",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            with patch.object(feishu_tasks, "_ENV_PATHS", [env_path]), patch.object(
+                feishu_tasks, "_ENV_LOADED", False
+            ), patch.dict(os.environ, {}, clear=True):
+                sink = feishu_tasks.build_task_sink()
+
+            self.assertIsInstance(sink, LarkCliTaskSink)
+            self.assertIsNotNone(sink.assignee_resolver)
 
 
 if __name__ == "__main__":

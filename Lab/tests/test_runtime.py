@@ -18,6 +18,44 @@ from integrations.feishu_tasks import DryRunTaskSink
 from helpers import load_fixture
 
 
+class RecordingSyncSink:
+    provider = "feishu"
+    mode = "lark_cli"
+
+    def __init__(self):
+        self.pushed = []
+
+    def push_task(self, task):
+        self.pushed.append(task["id"])
+        return {
+            "provider": "feishu",
+            "status": "synced",
+            "external_id": f"task-{task['id']}",
+            "external_url": f"https://feishu.example/tasks/{task['id']}",
+            "payload": {"summary": task["title"]},
+            "error": None,
+        }
+
+
+class RecordingDecisionSink:
+    provider = "feishu_base"
+    mode = "lark_cli"
+
+    def __init__(self):
+        self.pushed = []
+
+    def push_decision(self, meeting, decision):
+        self.pushed.append(decision["id"])
+        return {
+            "provider": "feishu_base",
+            "status": "synced",
+            "external_id": f"rec-{decision['id']}",
+            "external_url": f"https://feishu.example/base/{decision['id']}",
+            "payload": {"Decision": decision["decision"]},
+            "error": None,
+        }
+
+
 class BenchmarkRuntimeTests(unittest.TestCase):
     def test_workbench_lists_json_scenario_cases(self):
         runtime = BenchmarkRuntime(
@@ -512,6 +550,75 @@ class BenchmarkRuntimeTests(unittest.TestCase):
             self.assertEqual(result["tasks"][0]["status"], "dry_run")
             self.assertEqual(task["sync_status"], "dry_run")
             self.assertEqual(task["external_provider"], "feishu")
+
+    def test_sync_demo_tasks_to_feishu_skips_synced_tasks_unless_forced(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "lab.sqlite"
+            sink = RecordingSyncSink()
+            runtime = BenchmarkRuntime(
+                db_path=str(db_path),
+                results_dir=str(Path(tmpdir) / "results"),
+                llm_factory=lambda: object(),
+                task_sink_factory=lambda mode=None: sink,
+            )
+            store = runtime.store()
+            store.create_meeting("meeting-1", "Weekly", "demo", "case-1", "transcript")
+            action_id = store.save_meeting_action(
+                meeting_id="meeting-1",
+                variant="v2",
+                task="Ship review doc",
+                owner="Alice",
+                due="2026-07-20",
+                evidence="Alice: I will ship it.",
+            )
+            task_id = store.save_derived_task(
+                meeting_id="meeting-1",
+                action_id=action_id,
+                title="Ship review doc",
+                assignee="Alice",
+                due_date="2026-07-20",
+                source_evidence="Alice: I will ship it.",
+            )
+
+            first = runtime.sync_demo_tasks_to_feishu("meeting-1")
+            second = runtime.sync_demo_tasks_to_feishu("meeting-1")
+            forced = runtime.sync_demo_tasks_to_feishu("meeting-1", force=True)
+
+            self.assertEqual(first["tasks"][0]["status"], "synced")
+            self.assertEqual(second["tasks"][0]["status"], "skipped")
+            self.assertEqual(second["tasks"][0]["external_url"], f"https://feishu.example/tasks/{task_id}")
+            self.assertEqual(forced["tasks"][0]["status"], "synced")
+            self.assertEqual(sink.pushed, [task_id, task_id])
+
+    def test_sync_demo_decisions_to_feishu_base_skips_synced_decisions_unless_forced(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "lab.sqlite"
+            sink = RecordingDecisionSink()
+            runtime = BenchmarkRuntime(
+                db_path=str(db_path),
+                results_dir=str(Path(tmpdir) / "results"),
+                llm_factory=lambda: object(),
+                decision_sink_factory=lambda mode=None: sink,
+            )
+            store = runtime.store()
+            store.create_meeting("meeting-1", "Weekly", "demo", "case-1", "transcript")
+            decision_id = store.save_meeting_decision(
+                meeting_id="meeting-1",
+                variant="v2",
+                decision="Delay launch",
+                supersedes="Launch Friday",
+                evidence="Delay it.",
+            )
+
+            first = runtime.sync_demo_decisions_to_feishu_base("meeting-1")
+            second = runtime.sync_demo_decisions_to_feishu_base("meeting-1")
+            forced = runtime.sync_demo_decisions_to_feishu_base("meeting-1", force=True)
+
+            self.assertEqual(first["decisions"][0]["status"], "synced")
+            self.assertEqual(second["decisions"][0]["status"], "skipped")
+            self.assertEqual(second["decisions"][0]["external_url"], f"https://feishu.example/base/{decision_id}")
+            self.assertEqual(forced["decisions"][0]["status"], "synced")
+            self.assertEqual(sink.pushed, [decision_id, decision_id])
 
 
 if __name__ == "__main__":

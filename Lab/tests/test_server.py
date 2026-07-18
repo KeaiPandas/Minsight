@@ -17,6 +17,7 @@ if str(LAB_ROOT) not in sys.path:
 from server import build_handler
 from runtime import BenchmarkRuntime
 from integrations.feishu_tasks import DryRunTaskSink
+from integrations.feishu_base import DryRunDecisionSink
 
 
 class ServerApiTests(unittest.TestCase):
@@ -175,6 +176,7 @@ class ServerApiTests(unittest.TestCase):
                 v2_extractor_factory=lambda plain: ("langgraph", fake_v2),
                 llm_factory=lambda: object(),
                 task_sink_factory=lambda mode=None: DryRunTaskSink(),
+                decision_sink_factory=lambda mode=None: DryRunDecisionSink(),
             )
 
             handler = build_handler(runtime)
@@ -215,13 +217,31 @@ class ServerApiTests(unittest.TestCase):
 
                 sync_request = urllib.request.Request(
                     f"{base_url}/api/demo/meeting/sync-feishu",
-                    data=json.dumps({"meeting_id": payload["meeting_id"]}).encode("utf-8"),
+                    data=json.dumps(
+                        {
+                            "meeting_id": payload["meeting_id"],
+                            "force": True,
+                            "tasklist_id": "tasklist-guid",
+                        }
+                    ).encode("utf-8"),
                     headers={"Content-Type": "application/json"},
                     method="POST",
                 )
                 sync_payload = json.loads(urllib.request.urlopen(sync_request).read().decode("utf-8"))
                 self.assertEqual(sync_payload["mode"], "dry_run")
+                self.assertTrue(sync_payload["force"])
+                self.assertEqual(sync_payload["tasklist_id"], "tasklist-guid")
                 self.assertEqual(sync_payload["tasks"][0]["status"], "dry_run")
+
+                decision_sync_request = urllib.request.Request(
+                    f"{base_url}/api/demo/meeting/sync-decisions-base",
+                    data=json.dumps({"meeting_id": payload["meeting_id"], "force": True}).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                decision_sync_payload = json.loads(urllib.request.urlopen(decision_sync_request).read().decode("utf-8"))
+                self.assertEqual(decision_sync_payload["mode"], "dry_run")
+                self.assertEqual(decision_sync_payload["decisions"][0]["status"], "dry_run")
             finally:
                 server.shutdown()
                 server.server_close()

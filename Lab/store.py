@@ -112,6 +112,7 @@ class BenchmarkStore:
             self._ensure_run_columns(conn)
             self._ensure_prediction_columns(conn)
             self._ensure_derived_task_columns(conn)
+            self._ensure_meeting_decision_columns(conn)
 
     def _ensure_run_columns(self, conn):
         cols = {row[1] for row in conn.execute("PRAGMA table_info(benchmark_runs)").fetchall()}
@@ -144,10 +145,28 @@ class BenchmarkStore:
             "sync_error": "TEXT",
             "sync_payload_json": "TEXT",
             "synced_at": "TEXT",
+            "assignee_open_id": "TEXT",
+            "assignee_resolution_status": "TEXT",
+            "assignee_resolution_error": "TEXT",
         }
         for name, ddl in additions.items():
             if name not in cols:
                 conn.execute(f"ALTER TABLE derived_tasks ADD COLUMN {name} {ddl}")
+
+    def _ensure_meeting_decision_columns(self, conn):
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(meeting_decisions)").fetchall()}
+        additions = {
+            "base_external_provider": "TEXT",
+            "base_external_id": "TEXT",
+            "base_external_url": "TEXT",
+            "base_sync_status": "TEXT NOT NULL DEFAULT 'pending'",
+            "base_sync_error": "TEXT",
+            "base_sync_payload_json": "TEXT",
+            "base_synced_at": "TEXT",
+        }
+        for name, ddl in additions.items():
+            if name not in cols:
+                conn.execute(f"ALTER TABLE meeting_decisions ADD COLUMN {name} {ddl}")
 
     def create_run(self, run_id, scenario, v2_impl):
         with closing(self._connect()) as conn, conn:
@@ -495,14 +514,52 @@ class BenchmarkStore:
         with closing(self._connect()) as conn:
             rows = conn.execute(
                 """
-                SELECT id, meeting_id, variant, decision, supersedes, evidence, created_at
+                SELECT id, meeting_id, variant, decision, supersedes, evidence, created_at,
+                       base_external_provider, base_external_id, base_external_url,
+                       base_sync_status, base_sync_error, base_sync_payload_json,
+                       base_synced_at
                 FROM meeting_decisions
                 WHERE meeting_id = ?
                 ORDER BY variant, id
                 """,
                 (meeting_id,),
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [self._decode_meeting_decision_row(row) for row in rows]
+
+    def update_meeting_decision_sync(
+        self,
+        decision_id,
+        provider,
+        sync_status,
+        external_id=None,
+        external_url=None,
+        sync_error=None,
+        sync_payload=None,
+    ):
+        with closing(self._connect()) as conn, conn:
+            conn.execute(
+                """
+                UPDATE meeting_decisions
+                SET base_external_provider = ?,
+                    base_external_id = ?,
+                    base_external_url = ?,
+                    base_sync_status = ?,
+                    base_sync_error = ?,
+                    base_sync_payload_json = ?,
+                    base_synced_at = ?
+                WHERE id = ?
+                """,
+                (
+                    provider,
+                    external_id,
+                    external_url,
+                    sync_status,
+                    sync_error,
+                    json.dumps(sync_payload or {}, ensure_ascii=False),
+                    _now(),
+                    decision_id,
+                ),
+            )
 
     def list_derived_tasks(self, meeting_id):
         with closing(self._connect()) as conn:
@@ -511,7 +568,8 @@ class BenchmarkStore:
                 SELECT id, meeting_id, action_id, title, assignee, due_date,
                        source_evidence, status, created_at, external_provider,
                        external_id, external_url, sync_status, sync_error,
-                       sync_payload_json, synced_at
+                       sync_payload_json, synced_at, assignee_open_id,
+                       assignee_resolution_status, assignee_resolution_error
                 FROM derived_tasks
                 WHERE meeting_id = ?
                 ORDER BY id
@@ -529,6 +587,9 @@ class BenchmarkStore:
         external_url=None,
         sync_error=None,
         sync_payload=None,
+        assignee_open_id=None,
+        assignee_resolution_status=None,
+        assignee_resolution_error=None,
     ):
         with closing(self._connect()) as conn, conn:
             conn.execute(
@@ -540,7 +601,10 @@ class BenchmarkStore:
                     sync_status = ?,
                     sync_error = ?,
                     sync_payload_json = ?,
-                    synced_at = ?
+                    synced_at = ?,
+                    assignee_open_id = ?,
+                    assignee_resolution_status = ?,
+                    assignee_resolution_error = ?
                 WHERE id = ?
                 """,
                 (
@@ -551,6 +615,9 @@ class BenchmarkStore:
                     sync_error,
                     json.dumps(sync_payload or {}, ensure_ascii=False),
                     _now(),
+                    assignee_open_id,
+                    assignee_resolution_status,
+                    assignee_resolution_error,
                     task_id,
                 ),
             )
@@ -586,6 +653,15 @@ class BenchmarkStore:
         else:
             data["sync_payload"] = None
         data.pop("sync_payload_json", None)
+        return data
+
+    def _decode_meeting_decision_row(self, row):
+        data = dict(row)
+        if data.get("base_sync_payload_json"):
+            data["base_sync_payload"] = json.loads(data["base_sync_payload_json"])
+        else:
+            data["base_sync_payload"] = None
+        data.pop("base_sync_payload_json", None)
         return data
 
     @staticmethod

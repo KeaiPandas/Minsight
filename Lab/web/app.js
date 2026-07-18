@@ -494,6 +494,139 @@ async function syncFeishuTasks() {
   }
 }
 
+const TASK_SYNC_LABELS = {
+  pending: "待同步",
+  dry_run: "已预览",
+  synced: "已同步",
+  failed: "同步失败",
+  skipped: "已跳过",
+};
+
+let taskSyncFilter = "all";
+let lastRenderedTasks = [];
+
+function getTaskSyncStatus(task) {
+  return task.sync_status || "pending";
+}
+
+function getFilteredTasks(tasks) {
+  if (taskSyncFilter === "all") {
+    return tasks;
+  }
+  return tasks.filter((task) => getTaskSyncStatus(task) === taskSyncFilter);
+}
+
+function renderTaskFilterButton(status, label, count) {
+  const selected = taskSyncFilter === status ? "selected-card" : "";
+  return `<button class="task-filter ${selected}" data-task-filter="${escapeHtml(status)}">${escapeHtml(label)} <span>${count}</span></button>`;
+}
+
+function renderTaskSyncSummary(tasks) {
+  const counts = tasks.reduce((acc, task) => {
+    const status = getTaskSyncStatus(task);
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+  return `
+    <div class="task-sync-summary">
+      ${renderTaskFilterButton("all", "全部", tasks.length)}
+      ${renderTaskFilterButton("pending", "待同步", counts.pending || 0)}
+      ${renderTaskFilterButton("synced", "已同步", counts.synced || 0)}
+      ${renderTaskFilterButton("failed", "失败", counts.failed || 0)}
+      ${renderTaskFilterButton("dry_run", "预览", counts.dry_run || 0)}
+    </div>
+  `;
+}
+
+function renderTasks(tasks) {
+  lastRenderedTasks = tasks || [];
+  if (!lastRenderedTasks.length) {
+    tasksBoard.className = "case-table empty";
+    tasksBoard.textContent = "运行会议后，这里显示派生的待办任务。";
+    return;
+  }
+  const visibleTasks = getFilteredTasks(lastRenderedTasks);
+  tasksBoard.className = "case-table";
+  tasksBoard.innerHTML = `
+    <div class="task-toolbar">
+      <button class="run-button sync-button" id="syncFeishuButton">同步到飞书</button>
+      <input id="tasklistInput" class="tasklist-input" placeholder="可选：粘贴飞书任务清单 URL / guid" />
+      <span>默认读取 <code>Lab/.env</code>。已同步任务会自动跳过；确认后可强制重新同步。</span>
+    </div>
+    ${renderTaskSyncSummary(lastRenderedTasks)}
+    ${visibleTasks.length ? visibleTasks.map((task) => {
+      const status = getTaskSyncStatus(task);
+      const payload = task.sync_payload_json ?? task.sync_payload;
+      return `
+      <article class="case-item">
+        <div class="case-top">
+          <div>
+            <div class="case-variant">派生任务</div>
+            <div class="case-title">${escapeHtml(task.title)}</div>
+          </div>
+          <div class="sync-badge ${escapeHtml(status)}">${escapeHtml(TASK_SYNC_LABELS[status] || status)}</div>
+        </div>
+        <div class="judge-text">
+          <strong>负责人：</strong> ${escapeHtml(task.assignee || "未指定")}<br/>
+          ${task.assignee_open_id ? `<strong>飞书负责人：</strong> ${escapeHtml(task.assignee_open_id)}<br/>` : ""}
+          ${task.assignee_resolution_status ? `<strong>负责人映射：</strong> ${escapeHtml(task.assignee_resolution_status)}${task.assignee_resolution_error ? `，${escapeHtml(task.assignee_resolution_error)}` : ""}<br/>` : ""}
+          <strong>截止：</strong> ${escapeHtml(task.due_date || "未设置")}<br/>
+          <strong>证据：</strong> ${escapeHtml(task.source_evidence || "-")}<br/>
+          ${task.external_url ? `<strong>飞书任务：</strong> <a class="feishu-link" href="${escapeHtml(task.external_url)}" target="_blank" rel="noreferrer">打开飞书任务</a><br/>` : ""}
+          ${task.external_id ? `<strong>飞书 ID：</strong> ${escapeHtml(task.external_id)}<br/>` : ""}
+          ${task.synced_at ? `<strong>同步时间：</strong> ${escapeHtml(new Date(task.synced_at).toLocaleString())}<br/>` : ""}
+          ${task.sync_error ? `<strong>失败原因：</strong> ${escapeHtml(task.sync_error)}<br/>` : ""}
+        </div>
+        ${payload ? renderJsonDetails("查看同步 payload", parseMaybeJson(payload)) : ""}
+      </article>`;
+    }).join("") : `<div class="case-table empty">当前筛选下没有任务。</div>`}
+  `;
+  tasksBoard.querySelectorAll("[data-task-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      taskSyncFilter = button.dataset.taskFilter || "all";
+      renderTasks(lastRenderedTasks);
+    });
+  });
+  const button = document.getElementById("syncFeishuButton");
+  if (button) {
+    button.addEventListener("click", () => syncFeishuTasks());
+  }
+}
+
+async function syncFeishuTasks() {
+  if (!activeMeetingId) {
+    demoMeta.textContent = "请先打开一个会议，再同步待办到飞书。";
+    return;
+  }
+  const syncedCount = lastRenderedTasks.filter((task) => getTaskSyncStatus(task) === "synced").length;
+  const force = syncedCount > 0
+    ? window.confirm(`已有 ${syncedCount} 条任务同步成功。默认会跳过它们；是否强制重新同步这些任务？`)
+    : false;
+  const tasklistInput = document.getElementById("tasklistInput");
+  const tasklistId = tasklistInput?.value?.trim() || null;
+  const button = document.getElementById("syncFeishuButton");
+  if (button) { button.disabled = true; button.textContent = "同步中..."; }
+  try {
+    demoMeta.textContent = force ? "正在强制重新同步待办到飞书..." : "正在同步待办到飞书...";
+    const result = await fetchJson("/api/demo/meeting/sync-feishu", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ meeting_id: activeMeetingId, force, tasklist_id: tasklistId }),
+    });
+    const rows = result.tasks || [];
+    const total = rows.length;
+    const failed = rows.filter((task) => task.status === "failed").length;
+    const skipped = rows.filter((task) => task.status === "skipped").length;
+    const synced = rows.filter((task) => task.status === "synced").length;
+    const dryRun = rows.filter((task) => task.status === "dry_run").length;
+    demoMeta.textContent = `飞书同步完成：成功 ${synced}，预览 ${dryRun}，跳过 ${skipped}，失败 ${failed}，共 ${total} 条。`;
+    await loadMeeting(activeMeetingId);
+  } catch (error) {
+    demoMeta.textContent = `飞书同步失败：${error.message}`;
+    if (button) { button.disabled = false; button.textContent = "同步到飞书"; }
+  }
+}
+
 function renderAlerts(alerts) {
   if (!alerts?.length) {
     alertsBoard.className = "case-table empty";
@@ -517,6 +650,94 @@ function renderAlerts(alerts) {
       </div>
     </article>
   `).join("");
+}
+
+function renderDecisionBasePanel(decisions = []) {
+  const counts = decisions.reduce((acc, decision) => {
+    const status = decision.base_sync_status || "pending";
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+  return `
+    <article class="case-item decision-sync-panel">
+      <div class="case-top">
+        <div>
+          <div class="case-variant">决策库</div>
+          <div class="case-title">同步决策到飞书多维表格</div>
+        </div>
+        <button class="secondary-button" id="syncDecisionsButton">同步决策</button>
+      </div>
+      <div class="judge-text">
+        待同步 ${counts.pending || 0} · 已同步 ${counts.synced || 0} · 失败 ${counts.failed || 0} · 预览 ${counts.dry_run || 0}
+      </div>
+      ${decisions.map((decision) => {
+        const status = decision.base_sync_status || "pending";
+        return `
+          <div class="evidence-item">
+            <strong>${escapeHtml(decision.decision)}</strong>
+            <span>Base 状态：${escapeHtml(TASK_SYNC_LABELS[status] || status)}${decision.base_external_url ? ` · <a class="feishu-link" href="${escapeHtml(decision.base_external_url)}" target="_blank" rel="noreferrer">打开记录</a>` : ""}</span>
+            ${decision.base_sync_error ? `<span>失败原因：${escapeHtml(decision.base_sync_error)}</span>` : ""}
+          </div>
+        `;
+      }).join("")}
+    </article>
+  `;
+}
+
+function renderAlerts(alerts, decisions = []) {
+  alertsBoard.className = "case-table";
+  const alertHtml = alerts?.length ? alerts.map((alert) => `
+    <article class="case-item">
+      <div class="case-top">
+        <div>
+          <div class="case-variant">${escapeHtml(alert.type)}</div>
+          <div class="case-title">${escapeHtml(alert.title)}</div>
+        </div>
+      </div>
+      <div class="judge-text">
+        ${escapeHtml(alert.message || "")}<br/>
+        ${alert.task ? `<strong>任务：</strong> ${escapeHtml(alert.task)}<br/>` : ""}
+        ${alert.related_meeting_id ? `<strong>关联会议：</strong> ${escapeHtml(alert.related_meeting_id)}<br/>` : ""}
+        ${alert.supersedes ? `<strong>取代：</strong> ${escapeHtml(alert.supersedes)}` : ""}
+      </div>
+    </article>
+  `).join("") : `<div class="case-table empty">跨会议提示会显示在这里。</div>`;
+  alertsBoard.innerHTML = `${renderDecisionBasePanel(decisions)}${alertHtml}`;
+  const button = document.getElementById("syncDecisionsButton");
+  if (button) {
+    button.addEventListener("click", () => syncDecisionsToBase(decisions));
+  }
+}
+
+async function syncDecisionsToBase(decisions = []) {
+  if (!activeMeetingId) {
+    demoMeta.textContent = "请先打开一个会议，再同步决策到多维表格。";
+    return;
+  }
+  const syncedCount = decisions.filter((decision) => decision.base_sync_status === "synced").length;
+  const force = syncedCount > 0
+    ? window.confirm(`已有 ${syncedCount} 条决策同步成功。默认会跳过它们；是否强制重新同步？`)
+    : false;
+  const button = document.getElementById("syncDecisionsButton");
+  if (button) { button.disabled = true; button.textContent = "同步中..."; }
+  try {
+    demoMeta.textContent = force ? "正在强制同步决策到多维表格..." : "正在同步决策到多维表格...";
+    const result = await fetchJson("/api/demo/meeting/sync-decisions-base", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ meeting_id: activeMeetingId, force }),
+    });
+    const rows = result.decisions || [];
+    const failed = rows.filter((row) => row.status === "failed").length;
+    const skipped = rows.filter((row) => row.status === "skipped").length;
+    const synced = rows.filter((row) => row.status === "synced").length;
+    const dryRun = rows.filter((row) => row.status === "dry_run").length;
+    demoMeta.textContent = `决策库同步完成：成功 ${synced}，预览 ${dryRun}，跳过 ${skipped}，失败 ${failed}，共 ${rows.length} 条。`;
+    await loadMeeting(activeMeetingId);
+  } catch (error) {
+    demoMeta.textContent = `决策库同步失败：${error.message}`;
+    if (button) { button.disabled = false; button.textContent = "同步决策"; }
+  }
 }
 
 async function loadScenarios() {
@@ -589,7 +810,7 @@ async function loadMeeting(meetingId) {
   renderMinutes(data.minutes);
   renderRawOutput(data.output || data.variants?.v2);
   renderTasks(data.derived_tasks);
-  renderAlerts(data.alerts);
+  renderAlerts(data.alerts, data.decisions || []);
   demoMeta.textContent = `查看 ${data.meeting.title} | ${data.meeting.scenario || "ad_hoc"} | ${data.meeting.meeting_id}`;
   updateDemoProgress(data.meeting);
   if (data.meeting.status === "completed") {

@@ -21,6 +21,7 @@ from shared.meeting_info import get_meeting_date, get_meeting_info
 from v2.graph import extract_v2_graph
 
 from judge import judge_prediction
+from integrations.feishu_base import build_decision_sink
 from integrations.feishu_tasks import build_task_sink
 from metrics import combine_scores, score_objective_dimensions
 from store import BenchmarkStore
@@ -43,6 +44,7 @@ class BenchmarkRuntime:
         judge_fn=None,
         llm_factory=None,
         task_sink_factory=None,
+        decision_sink_factory=None,
     ):
         self.db_path = db_path or os.path.join(ROOT, "minsight_lab.sqlite")
         self.results_dir = results_dir or os.path.join(ROOT, "results")
@@ -52,6 +54,7 @@ class BenchmarkRuntime:
         self.judge_fn = judge_fn or judge_prediction
         self.llm_factory = llm_factory or LLMClient
         self.task_sink_factory = task_sink_factory or build_task_sink
+        self.decision_sink_factory = decision_sink_factory or build_decision_sink
 
     def store(self):
         store = BenchmarkStore(self.db_path)
@@ -158,15 +161,31 @@ class BenchmarkRuntime:
             "alerts": alerts,
         }
 
-    def sync_demo_tasks_to_feishu(self, meeting_id, mode=None):
+    def sync_demo_tasks_to_feishu(self, meeting_id, mode=None, force=False, tasklist_id=None):
         store = self.store()
         meeting = store.get_meeting(meeting_id)
         if not meeting:
             raise ValueError(f"meeting not found: {meeting_id}")
         tasks = store.list_derived_tasks(meeting_id)
         sink = self.task_sink_factory(mode)
+        if tasklist_id and hasattr(sink, "tasklist_id"):
+            sink.tasklist_id = tasklist_id
         results = []
         for task in tasks:
+            if task.get("sync_status") == "synced" and not force:
+                results.append(
+                    {
+                        "task_id": task["id"],
+                        "provider": task.get("external_provider") or "feishu",
+                        "status": "skipped",
+                        "external_id": task.get("external_id"),
+                        "external_url": task.get("external_url"),
+                        "payload": task.get("sync_payload") or {},
+                        "error": None,
+                        "reason": "already_synced",
+                    }
+                )
+                continue
             result = sink.push_task(task)
             store.update_derived_task_sync(
                 task_id=task["id"],
@@ -176,12 +195,58 @@ class BenchmarkRuntime:
                 external_url=result.get("external_url"),
                 sync_error=result.get("error"),
                 sync_payload=result.get("payload"),
+                assignee_open_id=result.get("assignee_open_id"),
+                assignee_resolution_status=result.get("assignee_resolution_status"),
+                assignee_resolution_error=result.get("assignee_resolution_error"),
             )
             results.append({"task_id": task["id"], **result})
         return {
             "meeting_id": meeting_id,
             "mode": getattr(sink, "mode", mode or "dry_run"),
+            "force": bool(force),
+            "tasklist_id": tasklist_id or getattr(sink, "tasklist_id", None),
             "tasks": results,
+        }
+
+    def sync_demo_decisions_to_feishu_base(self, meeting_id, mode=None, force=False):
+        store = self.store()
+        meeting = store.get_meeting(meeting_id)
+        if not meeting:
+            raise ValueError(f"meeting not found: {meeting_id}")
+        decisions = store.list_meeting_decisions(meeting_id)
+        sink = self.decision_sink_factory(mode)
+        results = []
+        for decision in decisions:
+            if decision.get("base_sync_status") == "synced" and not force:
+                results.append(
+                    {
+                        "decision_id": decision["id"],
+                        "provider": decision.get("base_external_provider") or "feishu_base",
+                        "status": "skipped",
+                        "external_id": decision.get("base_external_id"),
+                        "external_url": decision.get("base_external_url"),
+                        "payload": decision.get("base_sync_payload") or {},
+                        "error": None,
+                        "reason": "already_synced",
+                    }
+                )
+                continue
+            result = sink.push_decision(meeting, decision)
+            store.update_meeting_decision_sync(
+                decision_id=decision["id"],
+                provider=result.get("provider", "feishu_base"),
+                sync_status=result.get("status", "failed"),
+                external_id=result.get("external_id"),
+                external_url=result.get("external_url"),
+                sync_error=result.get("error"),
+                sync_payload=result.get("payload"),
+            )
+            results.append({"decision_id": decision["id"], **result})
+        return {
+            "meeting_id": meeting_id,
+            "mode": getattr(sink, "mode", mode or "dry_run"),
+            "force": bool(force),
+            "decisions": results,
         }
 
     def get_v2_extractor(self, plain=False):

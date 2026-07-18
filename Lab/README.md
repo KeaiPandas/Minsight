@@ -167,11 +167,39 @@ Equivalent `Lab/.env`:
 ```env
 MINSIGHT_FEISHU_SYNC_MODE=lark_cli
 MINSIGHT_FEISHU_IDENTITY=user
+MINSIGHT_FEISHU_RESOLVE_ASSIGNEE=false
 ```
 
 The adapter calls the safer `lark-cli task +create` shortcut and passes
 `--idempotency-key minsight-derived-task-<id>` so repeated clicks do not create
 duplicate tasks for the same derived task.
+
+The workbench also treats sync as a stateful operation:
+
+- `pending`, `dry_run`, `synced`, and `failed` tasks can be filtered in the UI.
+- Synced tasks show the Feishu task link, external id, sync time, and stored
+  payload.
+- Failed tasks show the CLI/API error captured in `sync_error`.
+- A second sync skips already synced tasks by default. If the user confirms a
+  force sync in the UI, the API receives `force=true` and retries those tasks
+  using the same idempotency key.
+- Assignee resolution is disabled by default so task sync does not require
+  contact scopes. If enabled, it searches Feishu contacts and passes
+  `--assignee <open_id>` when there is exactly one match:
+
+```env
+MINSIGHT_FEISHU_RESOLVE_ASSIGNEE=true
+```
+
+Keep it `false` for the lowest-friction demo path. With this setting, assignee
+names are preserved in the Feishu task description and no contact lookup is
+performed.
+
+- Tasklist routing can be configured by env or entered in the workbench UI:
+
+```env
+MINSIGHT_FEISHU_TASKLIST_ID=<tasklist-guid-or-url>
+```
 
 On Windows the adapter resolves the `lark-cli.cmd` shim first because Python
 subprocesses cannot always execute the PowerShell shim directly. If the CLI is
@@ -200,9 +228,52 @@ Required Feishu scope for real task creation:
 task:task:write
 ```
 
+Additional scope only when `MINSIGHT_FEISHU_RESOLVE_ASSIGNEE=true`:
+
+```text
+contact:user:search
+```
+
 The first integration keeps assignee names in the task description instead of
-assigning Feishu members directly. Real assignment should wait for reliable
-open_id/user_id resolution.
+assigning Feishu members directly unless contact resolution returns a single
+clear `open_id`. Ambiguous, missing, or permission-denied contact results are
+recorded on the task and do not block task creation.
+
+## Feishu Base Decision Sync
+
+Meeting decisions can be synced into a Feishu Base table from the workbench.
+The sync is manual, stateful, and mirrors task sync behavior: already synced
+decisions are skipped by default, while the UI can send `force=true` to retry.
+
+Required configuration for real writes:
+
+```env
+MINSIGHT_FEISHU_BASE_SYNC_MODE=lark_cli
+MINSIGHT_FEISHU_BASE_TOKEN=<base-token>
+MINSIGHT_FEISHU_DECISIONS_TABLE_ID=<table-id-or-table-name>
+```
+
+The workspace URL can be kept as operator context, but it is not enough to write
+records:
+
+```env
+MINSIGHT_FEISHU_BASE_WORKSPACE_URL=https://my.feishu.cn/base/workspace/...
+```
+
+The decision table should contain writable text fields matching these names:
+
+- `Decision ID`
+- `Meeting ID`
+- `Meeting Title`
+- `Scenario`
+- `Decision`
+- `Supersedes`
+- `Evidence`
+- `Created At`
+
+If `MINSIGHT_FEISHU_BASE_TOKEN` or `MINSIGHT_FEISHU_DECISIONS_TABLE_ID` is
+missing, the sync result is recorded as `failed` with an actionable
+configuration error instead of returning HTTP 500.
 
 ## Outputs
 
@@ -230,6 +301,8 @@ The automated coverage now protects:
 - benchmark runtime lifecycle
 - workbench meeting asset persistence
 - Feishu task sync dry-run and lark-cli adapter behavior
+- Feishu contact resolution as an opt-in adapter
+- Feishu Base decision sync dry-run and lark-cli adapter behavior
 - benchmark HTTP flow
 - workbench HTTP flow
 - scenario fixture complexity and gold coverage
