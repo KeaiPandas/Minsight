@@ -54,3 +54,6 @@ desktop.ini
 # Local automation/tool state
 .codex/
 .claude/
+
+# Local design docs (kept out of the repo)
+docs/
