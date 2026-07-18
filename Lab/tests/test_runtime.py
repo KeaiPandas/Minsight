@@ -366,6 +366,9 @@ class BenchmarkRuntimeTests(unittest.TestCase):
             v2_prediction = details["case_results"][0]["variants"]["v2"]["prediction"]["output"]
 
             self.assertEqual(details["run"]["status"], "completed")
+            self.assertEqual(details["run_health"]["status"], "degraded")
+            self.assertEqual(details["run_health"]["extract_error_count"], 1)
+            self.assertEqual(details["run_health"]["failed_cases"][0]["case_id"], "case-1")
             self.assertEqual(v2_prediction["_extract_error"], "JSONDecodeError")
             self.assertEqual(result["summary"]["v2"]["overall"], 0.0)
 

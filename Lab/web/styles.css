@@ -519,6 +519,35 @@ select:focus,
   font-size: 14px;
 }
 
+.run-health {
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.run-health strong {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.run-health.ok {
+  color: var(--good);
+  background: var(--good-soft);
+  border-color: rgba(47, 111, 94, 0.22);
+}
+
+.run-health.degraded {
+  color: var(--brand-ink);
+  background: var(--brand-soft);
+  border-color: rgba(192, 85, 47, 0.26);
+}
+
 /* ---------- Variant / metric cards ---------- */
 
 .variant-grid {

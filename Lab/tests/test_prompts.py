@@ -15,10 +15,11 @@ class PromptQualityTests(unittest.TestCase):
             "key_points.txt": ["{{TRANSCRIPT}}"],
             "key_points_reduce.txt": ["{{CANDIDATES}}"],
             "actions_decisions.txt": ["{{TRANSCRIPT}}", "{{ALIAS_MAP}}", "{{MEETING_DATE}}"],
+            "action_filter.txt": ["{{CANDIDATES}}"],
             "decision_filter.txt": ["{{CANDIDATES}}"],
             "repair.txt": ["{{ERROR}}", "{{RAW}}"],
         }
-        structured_english_prompts = {"key_points_reduce.txt", "decision_filter.txt"}
+        structured_english_prompts = {"key_points_reduce.txt", "action_filter.txt", "decision_filter.txt"}
 
         for name, placeholders in required_placeholders.items():
             with self.subTest(prompt=name):

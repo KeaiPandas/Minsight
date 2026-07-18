@@ -6,6 +6,7 @@ from typing import Any, Dict, List
 from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
 
+from v2.agents.action_filter_agent import ActionFilterAgent
 from v2.agents.actions_decisions_agent import ActionsDecisionsAgent
 from v2.agents.decision_filter_agent import DecisionFilterAgent
 from v2.agents.key_points_agent import KeyPointsAgent
@@ -34,6 +35,7 @@ def build_app(llm):
     key_points_agent = KeyPointsAgent(repair_agent)
     key_points_reduce_agent = KeyPointsReduceAgent(repair_agent)
     actions_decisions_agent = ActionsDecisionsAgent(repair_agent)
+    action_filter_agent = ActionFilterAgent(repair_agent)
     decision_filter_agent = DecisionFilterAgent(repair_agent)
     validation_agent = ValidationAgent()
 
@@ -68,6 +70,9 @@ def build_app(llm):
             )
         return {"action_items": action_items, "decisions": decisions}
 
+    def n_action_filter(state: S):
+        return {"action_items": action_filter_agent.run(state.get("action_items", []), llm)}
+
     def n_decision_filter(state: S):
         return {"decisions": decision_filter_agent.run(state.get("decisions", []), llm)}
 
@@ -88,6 +93,7 @@ def build_app(llm):
     g.add_node("key_points", n_keypoints)
     g.add_node("key_points_reduce", n_keypoints_reduce)
     g.add_node("actions", n_actions)
+    g.add_node("action_filter", n_action_filter)
     g.add_node("decision_filter", n_decision_filter)
     g.add_node("validate", n_validate)
     g.set_entry_point("segment")
@@ -95,8 +101,10 @@ def build_app(llm):
     g.add_edge("normalize", "key_points")
     g.add_edge("normalize", "actions")
     g.add_edge("key_points", "key_points_reduce")
+    g.add_edge("actions", "action_filter")
     g.add_edge("actions", "decision_filter")
     g.add_edge("key_points_reduce", "validate")
+    g.add_edge("action_filter", "validate")
     g.add_edge("decision_filter", "validate")
     g.add_edge("validate", END)
     return g.compile()

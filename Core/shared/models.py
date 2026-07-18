@@ -75,6 +75,10 @@ class ActionsDecisionsOut(BaseModel):
     decisions: List[Decision]
 
 
+class ActionItemsOut(BaseModel):
+    action_items: List[ActionItem]
+
+
 class DecisionsOut(BaseModel):
     decisions: List[Decision]
 

@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import json
+import os
 import sys
 import threading
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 CORE_ROOT = Path(__file__).resolve().parents[2] / "Core"
@@ -13,6 +15,8 @@ if str(CORE_ROOT) not in sys.path:
     sys.path.insert(0, str(CORE_ROOT))
 
 from v2.agents.actions_decisions_agent import ActionsDecisionsAgent
+from v2.agents.action_filter_agent import ActionFilterAgent
+from v2.agents.concurrency import segment_workers
 from v2.agents.decision_filter_agent import DecisionFilterAgent
 from v2.agents.key_points_agent import KeyPointsAgent
 from v2.agents.key_points_reduce_agent import KeyPointsReduceAgent
@@ -37,6 +41,10 @@ class FakeLLM:
 
 
 class V2WorkflowHardeningTests(unittest.TestCase):
+    def test_segment_workers_defaults_to_rate_limit_safe_parallelism(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(segment_workers(9), 2)
+
     def test_segment_agent_short_circuits_short_transcripts(self):
         case = {"transcript": "Alice: short meeting.\nBob: one decision."}
 
@@ -247,6 +255,53 @@ class V2WorkflowHardeningTests(unittest.TestCase):
         self.assertEqual(decisions, [])
         self.assertGreater(llm.max_active, 1)
 
+    def test_action_filter_agent_keeps_only_formal_assigned_tasks(self):
+        llm = FakeLLM(
+            {
+                "action_filter": [
+                    json.dumps(
+                        {
+                            "action_items": [
+                                {
+                                    "task": "Send launch brief",
+                                    "owner": "Alice",
+                                    "due": "2026-07-20",
+                                    "evidence": "Alice: I will send the launch brief by Monday.",
+                                }
+                            ]
+                        }
+                    )
+                ]
+            }
+        )
+        candidates = [
+            {
+                "task": "Send launch brief",
+                "owner": "Alice",
+                "due": "2026-07-20",
+                "evidence": "Alice: I will send the launch brief by Monday.",
+            },
+            {
+                "task": "Take a look at customer background",
+                "owner": "Alice",
+                "due": None,
+                "evidence": "Alice: I can take a look at it later.",
+            },
+            {
+                "task": "Finance has already handled the invoice",
+                "owner": "Finance",
+                "due": None,
+                "evidence": "PM: Finance has already handled the invoice, do not write it as an action.",
+            },
+        ]
+
+        filtered = ActionFilterAgent(RepairAgent()).run(candidates, llm)
+
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0].task, "Send launch brief")
+        self.assertEqual([call["agent"] for call in llm.prompts], ["action_filter"])
+        self.assertIn("formal action items", llm.prompts[0]["prompt"])
+
     def test_decision_filter_agent_keeps_final_topic_decisions_and_drops_clarifications(self):
         llm = FakeLLM(
             {
@@ -308,8 +363,11 @@ class V2WorkflowHardeningTests(unittest.TestCase):
 
         agents = [call["agent"] for call in llm.prompts]
         self.assertIn("key_points_reduce", agents)
+        self.assertIn("action_filter", agents)
         self.assertIn("decision_filter", agents)
         self.assertLessEqual(len(result["key_points"]), 2)
+        self.assertEqual(len(result["action_items"]), 1)
+        self.assertEqual(result["action_items"][0]["task"], "Send launch brief")
         self.assertEqual(len(result["decisions"]), 1)
 
 class FakeGraphLLM:
@@ -350,6 +408,12 @@ class FakeGraphLLM:
                             "owner": "Alice",
                             "due": None,
                             "evidence": "Speaker: line 1 discusses launch scope.",
+                        },
+                        {
+                            "task": "Take a casual look at the background",
+                            "owner": "Alice",
+                            "due": None,
+                            "evidence": "Speaker: I can take a look later.",
                         }
                     ],
                     "decisions": [
@@ -371,6 +435,19 @@ class FakeGraphLLM:
                 {
                     "key_points": [
                         {"topic": "Launch scope", "summary": "Launch scope is limited."}
+                    ]
+                }
+            )
+        if agent == "action_filter":
+            return json.dumps(
+                {
+                    "action_items": [
+                        {
+                            "task": "Send launch brief",
+                            "owner": "Alice",
+                            "due": None,
+                            "evidence": "Speaker: line 1 discusses launch scope.",
+                        }
                     ]
                 }
             )

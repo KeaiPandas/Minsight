@@ -113,7 +113,7 @@ function updateDemoProgress(meeting) {
   demoProgressText.textContent = `${meeting?.phase || "queued"} | ${meeting?.source_case_id || meeting?.scenario || "ad_hoc"}`;
 }
 
-function renderSummary(summary, historyDelta) {
+function renderSummary(summary, historyDelta, runHealth = null) {
   const variants = Object.entries(summary || {}).filter(([variant]) => variant !== "v1");
   if (!variants.length) {
     summaryBoard.className = "summary-board empty";
@@ -122,6 +122,7 @@ function renderSummary(summary, historyDelta) {
   }
   summaryBoard.className = "summary-board";
   summaryBoard.innerHTML = `
+    ${renderRunHealth(runHealth)}
     ${renderV2HistoryHeatmap(historyDelta)}
     <div class="variant-grid">
       ${variants.map(([variant, scores]) => `
@@ -142,6 +143,28 @@ function renderSummary(summary, historyDelta) {
         </div>
       `).join("")}
     </div>
+  `;
+}
+
+function renderRunHealth(runHealth) {
+  if (!runHealth) {
+    return "";
+  }
+  const failedCases = runHealth.failed_cases || [];
+  if (runHealth.status === "ok" || !failedCases.length) {
+    return `
+      <section class="run-health ok">
+        <strong>Run health: OK</strong>
+        <span>No extractor or judge runtime failures were recorded.</span>
+      </section>
+    `;
+  }
+  return `
+    <section class="run-health degraded">
+      <strong>Run health: DEGRADED</strong>
+      <span>${failedCases.length} runtime failure(s). Scores may mix model quality with infrastructure errors.</span>
+      ${renderJsonDetails("View runtime failures", failedCases)}
+    </section>
   `;
 }
 
@@ -469,7 +492,7 @@ async function loadMeetings() {
 async function loadRun(runId) {
   const data = await fetchJson(`/api/run?id=${encodeURIComponent(runId)}`);
   activeRunId = data.run.run_id;
-  renderSummary(data.summary, data.summary_history_delta);
+  renderSummary(data.summary, data.summary_history_delta, data.run_health);
   renderCases(data);
     runMeta.textContent = `查看运行 ${data.run.run_id} | 场景=${data.run.scenario || "全部"} | agent=${data.run.v2_impl}`;
   updateProgress(data.run);
@@ -510,7 +533,7 @@ async function deleteRun(runId) {
   await fetchJson(`/api/run?id=${encodeURIComponent(runId)}`, { method: "DELETE" });
   if (activeRunId === runId) {
     activeRunId = null;
-    renderSummary({}, null);
+    renderSummary({}, null, null);
     renderCases({});
     setStatus(statusPill, "idle", "空闲");
     runMeta.textContent = "运行已删除。";
@@ -642,7 +665,7 @@ async function boot() {
   await loadDemoCases();
   await loadRuns();
   await loadMeetings();
-  renderSummary({}, null);
+  renderSummary({}, null, null);
   renderCases({});
   renderMinutes(null);
   renderRawOutput(null);

@@ -26,13 +26,14 @@ Think step by step internally, but do not output your reasoning:
 [Few-shot]
 Input candidates:
 [
-  {"decision":"28th is only the plan date, not launch.","supersedes":null,"evidence":"PM: 28th is only the plan date."},
-  {"decision":"Operations banner is excluded from this release.","supersedes":null,"evidence":"Owner: operations banner is not in this release."}
+  {"decision":"28 日只是出方案时间，不是上线时间。","supersedes":null,"evidence":"产品：28 日只是出方案，不是上线。"},
+  {"decision":"运营活动提醒不进入本期范围。","supersedes":null,"evidence":"负责人：运营活动提醒这次不进本期。"},
+  {"decision":"权限申请不用重做审批流，只补提示文案。","supersedes":null,"evidence":"产品：权限申请不用重做审批流，只补提示文案。"}
 ]
 Standard output:
 {
   "decisions": [
-    {"decision":"Operations banner is excluded from this release.","supersedes":null,"evidence":"Owner: operations banner is not in this release."}
+    {"decision":"运营活动提醒不进入本期范围。","supersedes":null,"evidence":"负责人：运营活动提醒这次不进本期。"}
   ]
 }
 

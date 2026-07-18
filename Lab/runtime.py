@@ -122,9 +122,11 @@ class BenchmarkRuntime:
         summary = self.aggregate_judgements(
             self._judgement_rows_for_summary(active_judgements)
         )
+        run_health = self._build_run_health(active_predictions, active_judgements)
         summary_history_delta = self._build_summary_history_delta(store, run_id, run, summary)
         return {
             "run": run,
+            "run_health": run_health,
             "summary": summary,
             "summary_history_delta": summary_history_delta,
             "judgements": judgements,
@@ -224,6 +226,7 @@ class BenchmarkRuntime:
                 "impl": row["impl"],
                 "output": row["output"],
                 "routing": row["routing"],
+                "runtime_status": self._prediction_runtime_status(row["output"]),
             }
         for row in judgements:
             key = (row["scenario"], row["case_id"])
@@ -238,9 +241,73 @@ class BenchmarkRuntime:
             )
             variant_entry = case_entry["variants"].setdefault(row["variant"], {})
             variant_entry["judgement"] = row["result"]
+            variant_entry["judge_status"] = self._judge_runtime_status(row["result"])
             variant_entry["created_at"] = row["created_at"]
         self._attach_v2_history_deltas(run_id, by_case)
         return [by_case[key] for key in sorted(by_case.keys(), key=lambda item: (item[0], item[1]))]
+
+    def _build_run_health(self, predictions, judgements):
+        failed_cases = []
+        extract_error_count = 0
+        judge_error_count = 0
+        for row in predictions:
+            output = row.get("output") or {}
+            if output.get("_extract_error"):
+                extract_error_count += 1
+                failed_cases.append(
+                    {
+                        "case_id": row["case_id"],
+                        "scenario": row["scenario"],
+                        "variant": row["variant"],
+                        "stage": "prediction",
+                        "error_type": output.get("_extract_error"),
+                        "message": output.get("_error_message", ""),
+                    }
+                )
+        for row in judgements:
+            result = row.get("result") or {}
+            if result.get("_judge_error"):
+                judge_error_count += 1
+                failed_cases.append(
+                    {
+                        "case_id": row["case_id"],
+                        "scenario": row["scenario"],
+                        "variant": row["variant"],
+                        "stage": "judgement",
+                        "error_type": result.get("_judge_error"),
+                        "message": result.get("_judge_error_message", ""),
+                    }
+                )
+        status = "degraded" if failed_cases else "ok"
+        return {
+            "status": status,
+            "extract_error_count": extract_error_count,
+            "judge_error_count": judge_error_count,
+            "failed_case_count": len(failed_cases),
+            "failed_cases": failed_cases,
+        }
+
+    @staticmethod
+    def _prediction_runtime_status(output):
+        if (output or {}).get("_extract_error"):
+            return {
+                "status": "failed",
+                "stage": "prediction",
+                "error_type": output.get("_extract_error"),
+                "message": output.get("_error_message", ""),
+            }
+        return {"status": "ok"}
+
+    @staticmethod
+    def _judge_runtime_status(result):
+        if (result or {}).get("_judge_error"):
+            return {
+                "status": "failed",
+                "stage": "judgement",
+                "error_type": result.get("_judge_error"),
+                "message": result.get("_judge_error_message", ""),
+            }
+        return {"status": "ok"}
 
     def _attach_v2_history_deltas(self, run_id, by_case):
         store = self.store()
@@ -556,7 +623,7 @@ class BenchmarkRuntime:
             finished_at=None,
         )
         try:
-            with ThreadPoolExecutor(max_workers=min(4, max(1, len(prediction_jobs)))) as pool:
+            with ThreadPoolExecutor(max_workers=_benchmark_workers(len(prediction_jobs))) as pool:
                 future_map = {
                     pool.submit(self._prediction_task, case, variant, impl, extractor): (case["id"], variant)
                     for case, variant, impl, extractor in prediction_jobs
@@ -582,7 +649,7 @@ class BenchmarkRuntime:
             store.update_run_status(run_id, phase="judgements")
             judgements = []
             prediction_rows = store.list_predictions(run_id)
-            with ThreadPoolExecutor(max_workers=min(4, max(1, len(prediction_rows)))) as pool:
+            with ThreadPoolExecutor(max_workers=_benchmark_workers(len(prediction_rows))) as pool:
                 future_map = {
                     pool.submit(self._judge_task, row): (row["case_id"], row["variant"])
                     for row in prediction_rows
@@ -612,6 +679,10 @@ class BenchmarkRuntime:
                     store.increment_completed_tasks(run_id)
 
             summary = self.aggregate_judgements(judgements)
+            run_health = self._build_run_health(
+                [row for row in store.list_predictions(run_id) if row["variant"] != "v1"],
+                [row for row in store.list_judgements(run_id) if row["variant"] != "v1"],
+            )
             os.makedirs(self.results_dir, exist_ok=True)
             report_path = os.path.join(self.results_dir, f"{run_id}.json")
             with open(report_path, "w", encoding="utf-8") as f:
@@ -621,6 +692,7 @@ class BenchmarkRuntime:
                         "scenario": scenario,
                         "v2_impl": v2_impl,
                         "summary": summary,
+                        "run_health": run_health,
                         "prediction_backend": "real (openai-compatible)",
                         "judge_backend": "real (openai-compatible)",
                     },
@@ -641,6 +713,7 @@ class BenchmarkRuntime:
                 "scenario": scenario,
                 "v2_impl": v2_impl,
                 "summary": summary,
+                "run_health": run_health,
                 "prediction_backend": "real (openai-compatible)",
                 "judge_backend": "real (openai-compatible)",
                 "db_path": self.db_path,
@@ -663,3 +736,11 @@ class BenchmarkRuntime:
     @staticmethod
     def _default_v2_extractor_factory(_plain):
         return "langgraph", extract_v2_graph
+
+
+def _benchmark_workers(count):
+    try:
+        configured = int(os.getenv("MINSIGHT_BENCHMARK_WORKERS", "2"))
+    except ValueError:
+        configured = 2
+    return max(1, min(configured, max(1, count)))

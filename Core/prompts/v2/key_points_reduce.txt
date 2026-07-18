@@ -26,14 +26,14 @@ Think step by step internally, but do not output your reasoning:
 [Few-shot]
 Input candidates:
 [
-  {"topic":"Launch date","summary":"The team discussed moving launch."},
-  {"topic":"QA risk","summary":"QA risk blocks full rollout."},
-  {"topic":"Resume tips","summary":"Someone discussed job applications."}
+  {"topic":"上线日期","summary":"团队讨论了原定全量上线日期是否需要调整。"},
+  {"topic":"QA 风险","summary":"自动化测试还有阻塞风险，不能直接全量发布。"},
+  {"topic":"简历建议","summary":"有人顺带聊了面试和简历修改。"}
 ]
 Standard output:
 {
   "key_points": [
-    {"topic":"Launch scope","summary":"Full rollout is blocked by QA risk, so launch scope must be narrowed."}
+    {"topic":"上线范围收敛","summary":"由于 QA 风险仍未解除，本次不做全量上线，需要收敛为灰度发布。"}
   ]
 }
 

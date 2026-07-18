@@ -5,7 +5,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 
 
-DEFAULT_SEGMENT_WORKERS = 4
+DEFAULT_SEGMENT_WORKERS = 2
 
 
 def map_segments(fn, segments):
