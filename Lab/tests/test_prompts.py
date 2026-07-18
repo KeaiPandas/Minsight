@@ -11,9 +11,9 @@ PROMPT_DIR = ROOT / "Core" / "prompts" / "v2"
 class PromptQualityTests(unittest.TestCase):
     def test_v2_prompts_include_role_rules_steps_and_few_shot(self):
         required = {
-            "normalize.txt": ["{{TRANSCRIPT}}"],
+            "normalize.txt": ["{{TRANSCRIPT}}", "{{MEETING_INFO}}"],
             "key_points.txt": ["{{TRANSCRIPT}}"],
-            "actions_decisions.txt": ["{{TRANSCRIPT}}", "{{ALIAS_MAP}}"],
+            "actions_decisions.txt": ["{{TRANSCRIPT}}", "{{ALIAS_MAP}}", "{{MEETING_DATE}}"],
             "repair.txt": ["{{ERROR}}", "{{RAW}}"],
         }
 

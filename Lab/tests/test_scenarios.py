@@ -31,6 +31,9 @@ class ScenarioFixtureQualityTests(unittest.TestCase):
                 self.assertGreaterEqual(len(gold.get("key_points", [])), 3)
                 self.assertGreaterEqual(len(gold.get("action_items", [])), 2)
                 self.assertGreaterEqual(len(gold.get("decisions", [])), 1)
+                self.assertNotIn("alias_map", case)
+                self.assertRegex(case.get("meeting_info", {}).get("date", ""), r"^\d{4}-\d{2}-\d{2}$")
+                self.assertGreaterEqual(len(case.get("meeting_info", {}).get("attendees", [])), 3)
 
 
 if __name__ == "__main__":

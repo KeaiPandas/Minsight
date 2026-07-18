@@ -7,10 +7,14 @@ from pathlib import Path
 import sys
 
 LAB_ROOT = Path(__file__).resolve().parents[1]
+TEST_ROOT = Path(__file__).resolve().parent
 if str(LAB_ROOT) not in sys.path:
     sys.path.insert(0, str(LAB_ROOT))
+if str(TEST_ROOT) not in sys.path:
+    sys.path.insert(0, str(TEST_ROOT))
 
 from runtime import BenchmarkRuntime
+from helpers import load_fixture
 
 
 class BenchmarkRuntimeTests(unittest.TestCase):
@@ -76,6 +80,37 @@ class BenchmarkRuntimeTests(unittest.TestCase):
             self.assertTrue(report_path.exists())
             report = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(report["run_id"], result["run_id"])
+
+    def test_runtime_uses_objective_metrics_for_participants_and_actions(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "lab.sqlite"
+            fixture = load_fixture("objective_metrics_nickname.json")
+
+            def fake_cases(_scenario):
+                return [fixture["case"]]
+
+            def fake_v2(_case, _llm):
+                return fixture["prediction"]
+
+            def noisy_judge(**_kwargs):
+                return fixture["noisy_semantic_judge"]
+
+            runtime = BenchmarkRuntime(
+                db_path=str(db_path),
+                results_dir=str(Path(tmpdir) / "results"),
+                load_cases_fn=fake_cases,
+                list_scenarios_fn=lambda: ["nickname_reference"],
+                v2_extractor_factory=lambda plain: ("langgraph", fake_v2),
+                judge_fn=noisy_judge,
+                llm_factory=lambda: object(),
+            )
+
+            result = runtime.run_benchmark(scenario="nickname_reference")
+            scores = result["summary"]["v2"]
+
+            self.assertEqual(scores["participants"], 1.0)
+            self.assertEqual(scores["action_items"], 1.0)
+            self.assertGreater(scores["overall"], 0.0)
 
     def test_get_run_details_hides_archived_v1_results(self):
         with tempfile.TemporaryDirectory() as tmpdir:

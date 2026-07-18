@@ -47,8 +47,8 @@ Each agent resolves its model profile through `.env` using `AGENT_<NAME>=<profil
 Each file contains one complex meeting case with:
 
 - `transcript`
+- `meeting_info`
 - `complexity_tags`
-- `alias_map`
 - `gold`
 
 Current scenarios:

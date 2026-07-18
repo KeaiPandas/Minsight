@@ -1,32 +1,95 @@
 {
   "id": "mix_01",
   "scenario": "mixed_language",
-  "complexity_tags": ["mixed_language", "mixed_topics", "distractors", "ambiguous_refs"],
-  "transcript": "【Sprint Planning】\nLeo：This sprint 先 clear P0 bugs，但别把 tech sharing 算进 sprint scope，那个只是周五内部分享。\nDavid：OK。API rate limit 现在默认 100 rpm，enterprise customer 想到 500。我们可以先做 feature flag，不直接全量。\n小周：我担心的是 billing 页面，用户看到 quota 以后会以为要收费升级。这个 copy 需要改，但不是我写。\nLeo：Rate limit 方案 David owner，周三 07-22 给 design doc。billing copy 小周先起草中文和英文，07-21 前给我 review。\nDavid：还有 webhook retry，上周说过要不要这期做？\nLeo：Webhook retry 只修 fatal bug，不做完整重试策略。完整策略放下个 sprint。\n小周：那 release note 我等 David 的 design doc 后再写？\nLeo：对，release note 不单独作为本周交付。Decision：本 sprint 做 P0 bug、enterprise rate limit feature flag、billing quota copy；webhook retry 只修 fatal bug。",
-  "alias_map": {
-    "Leo": "梁乐",
-    "David": "戴维",
-    "小周": "周宁"
+  "meeting_info": {
+    "date": "2026-07-18",
+    "attendees": [
+      {
+        "account": "attendee_1",
+        "name": "梁乐",
+        "display_name": "Leo",
+        "role": "研发经理"
+      },
+      {
+        "account": "attendee_2",
+        "name": "戴维",
+        "display_name": "David",
+        "role": "后端工程师"
+      },
+      {
+        "account": "attendee_3",
+        "name": "周宁",
+        "display_name": "小周",
+        "role": "产品经理"
+      }
+    ]
   },
+  "complexity_tags": [
+    "mixed_language",
+    "mixed_topics",
+    "distractors",
+    "ambiguous_refs"
+  ],
+  "transcript": "【Sprint Planning】\nLeo：This sprint 先 clear P0 bugs，但别把 tech sharing 算进 sprint scope，那个只是周五内部分享。\nDavid：OK。API rate limit 现在默认 100 rpm，enterprise customer 想到 500。我们可以先做 feature flag，不直接全量。\n小周：我担心的是 billing 页面，用户看到 quota 以后会以为要收费升级。这个 copy 需要改，但不是我写。\nLeo：Rate limit 方案 David owner，周三 07-22 给 design doc。billing copy 小周先起草中文和英文，07-21 前给我 review。\nDavid：还有 webhook retry，上周说过要不要这期做？\nLeo：Webhook retry 只修 fatal bug，不做完整重试策略。完整策略放下个 sprint。\n小周：那 release note 我等 David 的 design doc 后再写？\nLeo：对，release note 不单独作为本周交付。Decision：本 sprint 做 P0 bug、enterprise rate limit feature flag、billing quota copy；webhook retry 只修 fatal bug。",
   "gold": {
     "participants": [
-      {"name": "梁乐", "role": "研发经理"},
-      {"name": "戴维", "role": "后端工程师"},
-      {"name": "周宁", "role": "产品经理"}
+      {
+        "name": "梁乐",
+        "role": "研发经理"
+      },
+      {
+        "name": "戴维",
+        "role": "后端工程师"
+      },
+      {
+        "name": "周宁",
+        "role": "产品经理"
+      }
     ],
     "key_points": [
-      {"topic": "P0 bug", "summary": "本 sprint 优先清理 P0 bug。"},
-      {"topic": "Enterprise rate limit", "summary": "企业客户 rate limit 通过 feature flag 从 100 rpm 提升到 500 rpm。"},
-      {"topic": "Billing quota copy", "summary": "计费页面 quota 文案需中英文调整，避免用户误解为收费升级。"},
-      {"topic": "Webhook retry", "summary": "本期只修 fatal bug，不做完整重试策略。"}
+      {
+        "topic": "P0 bug",
+        "summary": "本 sprint 优先清理 P0 bug。"
+      },
+      {
+        "topic": "Enterprise rate limit",
+        "summary": "企业客户 rate limit 通过 feature flag 从 100 rpm 提升到 500 rpm。"
+      },
+      {
+        "topic": "Billing quota copy",
+        "summary": "计费页面 quota 文案需中英文调整，避免用户误解为收费升级。"
+      },
+      {
+        "topic": "Webhook retry",
+        "summary": "本期只修 fatal bug，不做完整重试策略。"
+      }
     ],
     "action_items": [
-      {"task": "输出 enterprise rate limit feature flag design doc", "owner": "戴维", "due": "2026-07-22", "evidence": "Rate limit 方案 David owner，周三 07-22 给 design doc。"},
-      {"task": "起草 billing quota 中英文文案", "owner": "周宁", "due": "2026-07-21", "evidence": "billing copy 小周先起草中文和英文，07-21 前给我 review。"},
-      {"task": "修复 webhook retry fatal bug", "owner": null, "due": null, "evidence": "Webhook retry 只修 fatal bug，不做完整重试策略。"}
+      {
+        "task": "输出 enterprise rate limit feature flag design doc",
+        "owner": "戴维",
+        "due": "2026-07-22",
+        "evidence": "Rate limit 方案 David owner，周三 07-22 给 design doc。"
+      },
+      {
+        "task": "起草 billing quota 中英文文案",
+        "owner": "周宁",
+        "due": "2026-07-21",
+        "evidence": "billing copy 小周先起草中文和英文，07-21 前给我 review。"
+      },
+      {
+        "task": "修复 webhook retry fatal bug",
+        "owner": null,
+        "due": null,
+        "evidence": "Webhook retry 只修 fatal bug，不做完整重试策略。"
+      }
     ],
     "decisions": [
-      {"decision": "本 sprint 做 P0 bug、enterprise rate limit feature flag、billing quota copy；webhook retry 只修 fatal bug。", "supersedes": null, "evidence": "Decision：本 sprint 做 P0 bug、enterprise rate limit feature flag、billing quota copy；webhook retry 只修 fatal bug。"}
+      {
+        "decision": "本 sprint 做 P0 bug、enterprise rate limit feature flag、billing quota copy；webhook retry 只修 fatal bug。",
+        "supersedes": null,
+        "evidence": "Decision：本 sprint 做 P0 bug、enterprise rate limit feature flag、billing quota copy；webhook retry 只修 fatal bug。"
+      }
     ]
   }
 }

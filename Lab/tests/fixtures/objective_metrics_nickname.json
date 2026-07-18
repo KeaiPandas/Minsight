@@ -1,0 +1,72 @@
+{
+  "case": {
+    "id": "nick-objective-1",
+    "scenario": "nickname_reference",
+    "transcript": "老板和二哥讨论客户白名单。",
+    "meeting_info": {
+      "date": "2026-07-18",
+      "attendees": [
+        {
+          "account": "han.yue",
+          "name": "韩越",
+          "display_name": "老板",
+          "role": "客户负责人"
+        },
+        {
+          "account": "zhou.qiang",
+          "name": "周强",
+          "display_name": "二哥",
+          "role": "商务负责人"
+        },
+        {
+          "account": "lin.zhou",
+          "name": "林舟",
+          "display_name": "小林",
+          "role": "解决方案工程师"
+        }
+      ]
+    },
+    "gold": {
+      "participants": [
+        {"name": "韩越", "role": "客户负责人"},
+        {"name": "周强", "role": "商务负责人"},
+        {"name": "林舟", "role": "解决方案工程师"}
+      ],
+      "key_points": [],
+      "action_items": [
+        {
+          "task": "向林舟提供客户白名单",
+          "owner": "周强",
+          "due": "2026-07-18"
+        }
+      ],
+      "decisions": []
+    }
+  },
+  "prediction": {
+    "participants": [
+      {"name": "老板", "role": "客户负责人"},
+      {"name": "二哥", "role": "商务负责人"},
+      {"name": "小林", "role": "解决方案工程师"}
+    ],
+    "key_points": [],
+    "action_items": [
+      {
+        "task": "今天把客户白名单发给小林",
+        "owner": "二哥",
+        "due": "2026-07-18"
+      }
+    ],
+    "decisions": []
+  },
+  "noisy_semantic_judge": {
+    "participants": 0.0,
+    "key_points": 0.5,
+    "action_items": 0.0,
+    "decisions": 0.5,
+    "overall": 0.0,
+    "summary": "semantic judge only",
+    "strengths": [],
+    "issues": []
+  }
+}

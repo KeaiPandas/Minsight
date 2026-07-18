@@ -3,7 +3,7 @@
 `Lab/` now serves two purposes:
 
 1. `Benchmark`
-   Run the formal Minsight Agent against the shared scenario set, persist predictions, score them with the LLM judge, and compare each case with the previous run of the same task.
+   Run the formal Minsight Agent against the shared scenario set, persist predictions, score them with deterministic objective metrics plus LLM semantic judge, and compare each case with the previous run of the same task.
 2. `Workbench`
    Run a real transcript or mock case through V2, persist meeting assets, show readable minutes, evidence, derived tasks, and cross-meeting alerts.
 
@@ -21,7 +21,9 @@ The Lab critical path is organized around three public seams:
 Supporting modules:
 
 - [judge.py](/D:/Interview/Minsight/Lab/judge.py)
-  LLM judge for benchmark scoring
+  LLM judge for semantic benchmark dimensions
+- [metrics.py](/D:/Interview/Minsight/Lab/metrics.py)
+  Deterministic objective metrics for participants and action items
 - [web/](/D:/Interview/Minsight/Lab/web)
   Static frontend for both workbench and benchmark views
 
@@ -64,14 +66,17 @@ The current six scenarios intentionally cover different failure modes:
 | `multi_topic` | Topic switching and parking-lot filtering. |
 | `nickname_reference` | Nickname/reference resolution. |
 
-Scores shown in the UI come from LLM judge:
+Scores shown in the UI come from a hybrid evaluation path:
 
 1. Lab runs the formal Minsight Agent on the selected case set.
-2. Predictions and `gold` are persisted to SQLite.
-3. `judge.py` sends `transcript + gold + prediction` to the fixed judge prompt.
-4. The judge returns `0.0 ~ 1.0` scores for each dimension.
-5. The frontend renders them as percentages.
-6. If the same scenario/case has a previous V2 run, the frontend shows a heatmap of current score minus previous score.
+2. Predictions, `gold`, and lightweight case context such as `meeting_info` are persisted to SQLite.
+3. `metrics.py` deterministically scores objective dimensions:
+   `participants` and `action_items`.
+4. `judge.py` sends `transcript + gold + prediction` to the fixed judge prompt for semantic dimensions:
+   `key_points` and `decisions`.
+5. Lab combines objective and semantic scores into the final `overall`.
+6. The frontend renders them as percentages.
+7. If the same scenario/case has a previous V2 run, the frontend shows a heatmap of current score minus previous score.
 
 No embedding similarity API is used in the current benchmark flow.
 

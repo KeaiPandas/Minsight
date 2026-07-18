@@ -17,9 +17,11 @@ if CORE_ROOT not in sys.path:
 
 from shared.dataio import list_scenarios, load_cases
 from shared.llm import LLMClient
+from shared.meeting_info import get_meeting_date, get_meeting_info
 from v2.graph import extract_v2_graph
 
 from judge import judge_prediction
+from metrics import combine_scores, score_objective_dimensions
 from store import BenchmarkStore
 
 
@@ -256,17 +258,27 @@ class BenchmarkRuntime:
             "transcript": case["transcript"],
             "gold": case["gold"],
             "output": output,
+            "context": {
+                "meeting_info": get_meeting_info(case),
+                "meeting_date": get_meeting_date(case),
+            },
             "routing": list(getattr(llm, "call_log", [])),
         }
 
     def _judge_task(self, prediction_row):
         llm = self.llm_factory()
-        result = self.judge_fn(
+        semantic = self.judge_fn(
             llm=llm,
             transcript=prediction_row["transcript"],
             gold=prediction_row["gold"],
             prediction=prediction_row["output"],
         )
+        case_context = {
+            "gold": prediction_row["gold"],
+            **(prediction_row.get("context") or {}),
+        }
+        objective = score_objective_dimensions(case_context, prediction_row["output"])
+        result = combine_scores(semantic, objective)
         return {
             "case_id": prediction_row["case_id"],
             "scenario": prediction_row["scenario"],
@@ -512,6 +524,7 @@ class BenchmarkRuntime:
                         transcript=payload["transcript"],
                         gold=payload["gold"],
                         output=payload["output"],
+                        context=payload["context"],
                         routing=payload["routing"],
                     )
                     store.increment_completed_tasks(run_id)

@@ -41,6 +41,7 @@ class BenchmarkStore:
                     transcript TEXT NOT NULL,
                     gold_json TEXT NOT NULL,
                     output_json TEXT NOT NULL,
+                    context_json TEXT,
                     routing_json TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
@@ -109,6 +110,7 @@ class BenchmarkStore:
                 """
             )
             self._ensure_run_columns(conn)
+            self._ensure_prediction_columns(conn)
 
     def _ensure_run_columns(self, conn):
         cols = {row[1] for row in conn.execute("PRAGMA table_info(benchmark_runs)").fetchall()}
@@ -125,6 +127,11 @@ class BenchmarkStore:
         for name, ddl in additions.items():
             if name not in cols:
                 conn.execute(f"ALTER TABLE benchmark_runs ADD COLUMN {name} {ddl}")
+
+    def _ensure_prediction_columns(self, conn):
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(predictions)").fetchall()}
+        if "context_json" not in cols:
+            conn.execute("ALTER TABLE predictions ADD COLUMN context_json TEXT")
 
     def create_run(self, run_id, scenario, v2_impl):
         with closing(self._connect()) as conn, conn:
@@ -158,14 +165,14 @@ class BenchmarkStore:
                 (step, run_id),
             )
 
-    def save_prediction(self, run_id, case_id, scenario, variant, impl, transcript, gold, output, routing):
+    def save_prediction(self, run_id, case_id, scenario, variant, impl, transcript, gold, output, routing, context=None):
         with closing(self._connect()) as conn, conn:
             conn.execute(
                 """
                 INSERT INTO predictions(
                     run_id, case_id, scenario, variant, impl, transcript,
-                    gold_json, output_json, routing_json, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    gold_json, output_json, context_json, routing_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     run_id,
@@ -176,6 +183,7 @@ class BenchmarkStore:
                     transcript,
                     json.dumps(gold, ensure_ascii=False),
                     json.dumps(output, ensure_ascii=False),
+                    json.dumps(context or {}, ensure_ascii=False),
                     json.dumps(routing, ensure_ascii=False),
                     _now(),
                 ),
@@ -186,7 +194,7 @@ class BenchmarkStore:
             rows = conn.execute(
                 """
                 SELECT run_id, case_id, scenario, variant, impl,
-                       transcript, gold_json, output_json, routing_json
+                       transcript, gold_json, output_json, context_json, routing_json
                 FROM predictions
                 WHERE run_id = ?
                 ORDER BY scenario, case_id, variant
@@ -203,6 +211,7 @@ class BenchmarkStore:
                 "transcript": row["transcript"],
                 "gold": json.loads(row["gold_json"]),
                 "output": json.loads(row["output_json"]),
+                "context": json.loads(row["context_json"] or "{}"),
                 "routing": json.loads(row["routing_json"]),
             }
             for row in rows
