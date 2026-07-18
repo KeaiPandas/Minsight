@@ -1,42 +1,65 @@
-# V2 Multi-Agent Workflow
+# Minsight V2 Agent Architecture
 
-V2 现在统一为一条 LangGraph 工作流，不再保留单独的 plain pipeline。四个核心 agent 已经完全拆到 `D:\Interview\Minsight\Core\v2\agents\` 目录中，一个角色一个文件。
+V2 is the production extraction workflow. It is orchestrated by LangGraph and
+implemented as small agents under `Core/v2/agents/`.
+
+## Current Workflow
 
 ```mermaid
 flowchart TD
-    A["Normalize Agent<br/>participants + alias_map<br/>model: cheap"]
-    B["KeyPoints Agent<br/>key points<br/>model: cheap"]
-    C["ActionsDecisions Agent<br/>action items + decisions<br/>model: strong"]
-    D["Validation Agent<br/>merge + owner normalization<br/>local rules only"]
-    A --> B
-    A --> C
-    B --> D
-    C --> D
-    D --> E["Structured Minutes Output"]
+    S["Segment Agent<br/>deterministic line windows<br/>no LLM cost"]
+    N["Normalize Agent<br/>participants + alias_map<br/>uses meeting_info attendees"]
+    K["KeyPoints Agent<br/>map over segments<br/>reduce duplicate topics"]
+    A["ActionsDecisions Agent<br/>map over segments<br/>uses alias_map + meeting date<br/>reduce duplicate actions/decisions"]
+    V["Validation Agent<br/>owner normalization + final shape<br/>local rules only"]
+    O["Structured Minutes Output"]
+
+    S --> N
+    N --> K
+    N --> A
+    K --> V
+    A --> V
+    V --> O
 ```
 
-## Agent Layout
+## Agent Responsibilities
 
-- `normalize_agent.py`
-  负责说话人、角色、别名归一，输出 `participants` 和 `alias_map`。
-- `key_points_agent.py`
-  基于 transcript 抽取会议要点。
-- `actions_decisions_agent.py`
-  结合 transcript 和 `alias_map` 抽取待办与决策。
-- `repair_agent.py`
-  当结构化解析失败时执行一次修复，供前三个 LLM agent 复用。
-- `validation_agent.py`
-  不调用 LLM，只做结果融合、owner 归一和最终输出整形。
+- `segment_agent.py`: Splits long transcripts into ordered line windows with a
+  small overlap. Short transcripts are passed through as one segment, so normal
+  meetings do not pay extra LLM cost.
+- `normalize_agent.py`: Extracts participants and alias mapping. It treats
+  `meeting_info.attendees` as the authoritative roster when present.
+- `key_points_agent.py`: Extracts key points per segment and reduces duplicates
+  by stable topic/summary keys.
+- `actions_decisions_agent.py`: Extracts action items and decisions per segment.
+  It injects the alias map and `meeting_info.date` into every map call, then
+  reduces duplicate actions and decisions.
+- `repair_agent.py`: Performs one structured-output repair attempt for LLM
+  agents when JSON parsing or pydantic validation fails.
+- `validation_agent.py`: Produces the final output shape and normalizes action
+  owners through the alias map. It does not call an LLM.
 
-## Orchestration
+## W2 Hardening Decisions
 
-- `graph.py` 是唯一的编排入口。
-- `normalize` 先执行，为后续两个抽取 agent 提供标准化上下文。
-- `key_points` 和 `actions_decisions` 在图中 fan-out 并行执行。
-- `validate` 在 fan-in 节点汇总结果，生成最终结构化纪要。
+- Long meetings use deterministic segmentation before extraction. This reduces
+  omission risk on cases such as `real_world_kickoff` without adding an LLM call
+  just to split text.
+- Map/reduce currently applies to `key_points` and `actions_decisions`.
+  `normalize` still reads the full transcript so the roster and aliases remain
+  global.
+- Short meetings keep the old cost profile: one segment means one key-point call
+  and one actions/decisions call.
+- Roster and date context are injected into extraction prompts through existing
+  `meeting_info`, so nickname normalization and relative-date normalization do
+  not require extra scenario data.
 
-## Why This Shape
+## Next W2 Candidates
 
-- 抽取任务目标稳定、阶段明确，适合工作流式编排。
-- 四个 agent 是固定职责分工，不需要额外的自治协商层。
-- 拆到独立目录后，后续做单 agent 评测、替换模型路由、加 tracing 或重试策略都会更容易。
+- Add a lightweight `verify_agent.py` pass for long meetings only. It should ask
+  whether topic-level exclusions, priority changes, and final selections are
+  missing from decisions.
+- Split decision extraction into recall-first candidates and rubric filtering.
+  This should target the `real_01` under-extraction vs `nick_01` over-extraction
+  tension.
+- Add confidence fields only after the benchmark UI has a clear place to show
+  confidence diagnostics.

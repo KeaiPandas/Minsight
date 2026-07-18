@@ -1,17 +1,33 @@
 # V2 Structured Extraction
 
-V2 现在统一为 LangGraph 工作流实现，核心 agent 位于 `agents/` 目录：
+V2 is the active Minsight extraction workflow. It uses LangGraph to orchestrate
+small agents and produces the final structured meeting-minutes JSON.
 
-- `normalize_agent.py`
-- `key_points_agent.py`
-- `actions_decisions_agent.py`
-- `repair_agent.py`
-- `validation_agent.py`
+## Agents
 
-运行方式：
+- `segment_agent.py`: deterministic long-transcript segmentation.
+- `normalize_agent.py`: participants and alias map.
+- `key_points_agent.py`: segment-level key-point extraction plus reduce.
+- `actions_decisions_agent.py`: segment-level action/decision extraction plus
+  reduce, with roster/date context.
+- `repair_agent.py`: one repair pass for malformed structured outputs.
+- `validation_agent.py`: local final-shape validation and owner normalization.
 
-```bash
-python v2/run.py --scenario decision_reversal
+## Run
+
+From `D:\Interview\Minsight\Core`:
+
+```powershell
+python v2\run.py --scenario decision_reversal
 ```
 
-运行前需要先在 `Core/.env`、仓库根目录 `.env` 或 `Lab/.env` 中配置可用的真实 LLM profile。
+The real LLM profiles must be configured in `Core\.env`, repository `.env`, or
+`Lab\.env`.
+
+## Notes
+
+- Short transcripts still run as a single segment.
+- Long transcripts are split into ordered windows before key-point and
+  action/decision extraction.
+- `meeting_info.attendees` and `meeting_info.date` are first-class inputs for
+  nickname normalization and relative-date normalization.

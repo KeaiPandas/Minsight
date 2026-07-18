@@ -296,23 +296,44 @@ class BenchmarkRuntime:
 
     def _judge_task(self, prediction_row):
         llm = self.llm_factory()
-        semantic = self.judge_fn(
-            llm=llm,
-            transcript=prediction_row["transcript"],
-            gold=prediction_row["gold"],
-            prediction=prediction_row["output"],
-        )
+        judge_error = None
+        try:
+            semantic = self.judge_fn(
+                llm=llm,
+                transcript=prediction_row["transcript"],
+                gold=prediction_row["gold"],
+                prediction=prediction_row["output"],
+            )
+        except Exception as exc:
+            judge_error = exc
+            semantic = self._judge_failure_result(exc)
         case_context = {
             "gold": prediction_row["gold"],
             **(prediction_row.get("context") or {}),
         }
         objective = score_objective_dimensions(case_context, prediction_row["output"])
         result = combine_scores(semantic, objective)
+        if judge_error:
+            result["_judge_error"] = type(judge_error).__name__
+            result["_judge_error_message"] = str(judge_error)
         return {
             "case_id": prediction_row["case_id"],
             "scenario": prediction_row["scenario"],
             "variant": prediction_row["variant"],
             "result": result,
+        }
+
+    @staticmethod
+    def _judge_failure_result(exc):
+        return {
+            "participants": 0.0,
+            "key_points": 0.0,
+            "action_items": 0.0,
+            "decisions": 0.0,
+            "overall": 0.0,
+            "summary": "LLM judge failed to produce a valid score.",
+            "strengths": [],
+            "issues": [f"{type(exc).__name__}: {exc}"],
         }
 
     def _extract_variant(self, case, variant, impl, extractor):

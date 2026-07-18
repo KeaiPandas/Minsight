@@ -1,0 +1,84 @@
+{
+  "case": {
+    "id": "w15_01",
+    "scenario": "objective_metrics",
+    "transcript": "2026-07-18 产品例会\n韩越：周强，今天把客户白名单发给林舟，截止今天。\n周强：收到，我今天发。\n林舟：我会在周一输出灰度发布风险清单。\n韩越：暂时不做录屏，只作为议题结论记录。",
+    "meeting_info": {
+      "date": "2026-07-18",
+      "attendees": [
+        {"account": "hanyue", "name": "韩越", "display_name": "老板", "role": "客户负责人"},
+        {"account": "zhouqiang", "name": "周强", "display_name": "二哥", "role": "商务负责人"},
+        {"account": "linzhou", "name": "林舟", "display_name": "小林", "role": "解决方案工程师"}
+      ]
+    },
+    "gold": {
+      "participants": [
+        {"name": "韩越", "role": "客户负责人"},
+        {"name": "周强", "role": "商务负责人"},
+        {"name": "林舟", "role": "解决方案工程师"}
+      ],
+      "key_points": [],
+      "action_items": [
+        {
+          "task": "向林舟提供客户白名单",
+          "owner": "周强",
+          "due": "2026-07-18",
+          "evidence": "韩越：周强，今天把客户白名单发给林舟，截止今天。"
+        },
+        {
+          "task": "输出灰度发布风险清单",
+          "owner": "林舟",
+          "due": null,
+          "evidence": "林舟：我会在周一输出灰度发布风险清单。"
+        }
+      ],
+      "decisions": [
+        {
+          "decision": "暂时不做录屏",
+          "supersedes": null,
+          "evidence": "韩越：暂时不做录屏，只作为议题结论记录。"
+        }
+      ]
+    }
+  },
+  "prediction_with_extra_and_bad_evidence": {
+    "participants": [
+      {"name": "老板", "role": "客户负责人"},
+      {"name": "二哥", "role": "商务负责人"},
+      {"name": "小林", "role": "解决方案工程师"}
+    ],
+    "key_points": [],
+    "action_items": [
+      {
+        "task": "今天把客户白名单发给小林",
+        "owner": "二哥",
+        "due": "2026-07-18",
+        "evidence": "韩越：周强，今天把客户白名单发给林舟，截止今天。"
+      },
+      {
+        "task": "整理灰度发布风险清单",
+        "owner": "林舟",
+        "due": "next Monday",
+        "evidence": "这句原文不存在"
+      },
+      {
+        "task": "准备发票材料",
+        "owner": "",
+        "due": "2026/07/19",
+        "evidence": ""
+      }
+    ],
+    "decisions": [
+      {
+        "decision": "暂时不做录屏",
+        "supersedes": null,
+        "evidence": "韩越：暂时不做录屏，只作为议题结论记录。"
+      },
+      {
+        "decision": "立刻采购录屏系统",
+        "supersedes": null,
+        "evidence": "不存在的采购结论"
+      }
+    ]
+  }
+}

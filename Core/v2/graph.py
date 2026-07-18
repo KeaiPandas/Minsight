@@ -10,11 +10,13 @@ from v2.agents.actions_decisions_agent import ActionsDecisionsAgent
 from v2.agents.key_points_agent import KeyPointsAgent
 from v2.agents.normalize_agent import NormalizeAgent
 from v2.agents.repair_agent import RepairAgent
+from v2.agents.segment_agent import SegmentAgent
 from v2.agents.validation_agent import ValidationAgent
 
 
 class S(TypedDict, total=False):
     case: Any
+    segments: List[Dict]
     participants: List
     alias_map: Dict
     key_points: List
@@ -25,24 +27,38 @@ class S(TypedDict, total=False):
 
 def build_app(llm):
     repair_agent = RepairAgent()
+    segment_agent = SegmentAgent()
     normalize_agent = NormalizeAgent(repair_agent)
     key_points_agent = KeyPointsAgent(repair_agent)
     actions_decisions_agent = ActionsDecisionsAgent(repair_agent)
     validation_agent = ValidationAgent()
+
+    def n_segment(state: S):
+        return {"segments": segment_agent.run(state["case"])}
 
     def n_normalize(state: S):
         participants, alias_map = normalize_agent.run(state["case"], llm)
         return {"participants": participants, "alias_map": alias_map}
 
     def n_keypoints(state: S):
-        return {"key_points": key_points_agent.run(state["case"], llm)}
+        segments = state.get("segments") or [{"text": state["case"]["transcript"]}]
+        return {"key_points": key_points_agent.run_many(segments, llm)}
 
     def n_actions(state: S):
-        action_items, decisions = actions_decisions_agent.run(
-            state["case"],
-            state.get("alias_map", {}),
-            llm,
-        )
+        segments = state.get("segments") or [{"text": state["case"]["transcript"]}]
+        if len(segments) == 1 and segments[0].get("text") == state["case"]["transcript"]:
+            action_items, decisions = actions_decisions_agent.run(
+                state["case"],
+                state.get("alias_map", {}),
+                llm,
+            )
+        else:
+            action_items, decisions = actions_decisions_agent.run_many(
+                state["case"],
+                segments,
+                state.get("alias_map", {}),
+                llm,
+            )
         return {"action_items": action_items, "decisions": decisions}
 
     def n_validate(state: S):
@@ -57,11 +73,13 @@ def build_app(llm):
         }
 
     g = StateGraph(S)
+    g.add_node("segment", n_segment)
     g.add_node("normalize", n_normalize)
     g.add_node("key_points", n_keypoints)
     g.add_node("actions", n_actions)
     g.add_node("validate", n_validate)
-    g.set_entry_point("normalize")
+    g.set_entry_point("segment")
+    g.add_edge("segment", "normalize")
     g.add_edge("normalize", "key_points")
     g.add_edge("normalize", "actions")
     g.add_edge("key_points", "validate")

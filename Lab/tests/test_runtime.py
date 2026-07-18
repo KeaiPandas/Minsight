@@ -81,7 +81,7 @@ class BenchmarkRuntimeTests(unittest.TestCase):
             report = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(report["run_id"], result["run_id"])
 
-    def test_runtime_uses_objective_metrics_for_participants_and_actions(self):
+    def test_runtime_uses_objective_metrics_for_participants_and_keeps_actions_as_judge_score(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "lab.sqlite"
             fixture = load_fixture("objective_metrics_nickname.json")
@@ -109,8 +109,55 @@ class BenchmarkRuntimeTests(unittest.TestCase):
             scores = result["summary"]["v2"]
 
             self.assertEqual(scores["participants"], 1.0)
-            self.assertEqual(scores["action_items"], 1.0)
+            self.assertEqual(scores["action_items"], fixture["noisy_semantic_judge"]["action_items"])
             self.assertGreater(scores["overall"], 0.0)
+
+    def test_runtime_persists_objective_details_without_changing_summary_shape(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "lab.sqlite"
+            fixture = load_fixture("objective_metrics_w15.json")
+
+            def fake_cases(_scenario):
+                return [fixture["case"]]
+
+            def fake_v2(_case, _llm):
+                return fixture["prediction_with_extra_and_bad_evidence"]
+
+            def semantic_judge(**_kwargs):
+                return {
+                    "participants": 0.0,
+                    "key_points": 0.8,
+                    "action_items": 0.0,
+                    "decisions": 1.0,
+                    "overall": 0.7,
+                    "summary": "semantic only",
+                    "strengths": [],
+                    "issues": [],
+                }
+
+            runtime = BenchmarkRuntime(
+                db_path=str(db_path),
+                results_dir=str(Path(tmpdir) / "results"),
+                load_cases_fn=fake_cases,
+                list_scenarios_fn=lambda: ["objective_metrics"],
+                v2_extractor_factory=lambda plain: ("langgraph", fake_v2),
+                judge_fn=semantic_judge,
+                llm_factory=lambda: object(),
+            )
+
+            result = runtime.run_benchmark(scenario="objective_metrics")
+            details = runtime.get_run_details(result["run_id"])
+            judgement = details["case_results"][0]["variants"]["v2"]["judgement"]
+
+            self.assertEqual(
+                set(result["summary"]["v2"]),
+                {"participants", "key_points", "action_items", "decisions", "overall"},
+            )
+            self.assertIn("_objective_details", judgement)
+            self.assertIn("_objective_scores", judgement)
+            self.assertEqual(judgement["_objective_details"]["action_items"]["extra_items"], 1)
+            self.assertEqual(judgement["action_items"], 0.0)
+            self.assertEqual(judgement["decisions"], 1.0)
 
     def test_get_run_details_hides_archived_v1_results(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -321,6 +368,51 @@ class BenchmarkRuntimeTests(unittest.TestCase):
             self.assertEqual(details["run"]["status"], "completed")
             self.assertEqual(v2_prediction["_extract_error"], "JSONDecodeError")
             self.assertEqual(result["summary"]["v2"]["overall"], 0.0)
+
+    def test_runtime_records_judge_errors_without_failing_run(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "lab.sqlite"
+
+            def fake_cases(_scenario):
+                return [
+                    {
+                        "id": "case-1",
+                        "scenario": "demo",
+                        "transcript": "meeting transcript",
+                        "gold": {"participants": [{"name": "Alice", "role": "PM"}]},
+                    }
+                ]
+
+            def fake_v2(_case, _llm):
+                return {
+                    "participants": [{"name": "Alice", "role": "PM"}],
+                    "key_points": [],
+                    "action_items": [],
+                    "decisions": [],
+                }
+
+            def broken_judge(**_kwargs):
+                raise json.JSONDecodeError("Expecting ',' delimiter", "{", 251)
+
+            runtime = BenchmarkRuntime(
+                db_path=str(db_path),
+                results_dir=str(Path(tmpdir) / "results"),
+                load_cases_fn=fake_cases,
+                list_scenarios_fn=lambda: ["demo"],
+                v2_extractor_factory=lambda plain: ("langgraph", fake_v2),
+                judge_fn=broken_judge,
+                llm_factory=lambda: object(),
+            )
+
+            result = runtime.run_benchmark(scenario="demo")
+            details = runtime.get_run_details(result["run_id"])
+            judgement = details["case_results"][0]["variants"]["v2"]["judgement"]
+
+            self.assertEqual(details["run"]["status"], "completed")
+            self.assertEqual(judgement["_judge_error"], "JSONDecodeError")
+            self.assertIn("Expecting ',' delimiter", judgement["_judge_error_message"])
+            self.assertEqual(judgement["participants"], 1.0)
+            self.assertEqual(judgement["overall"], result["summary"]["v2"]["overall"])
 
     def test_demo_run_persists_minutes_tasks_and_duplicate_alerts(self):
         with tempfile.TemporaryDirectory() as tmpdir:
