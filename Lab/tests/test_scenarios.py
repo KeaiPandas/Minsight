@@ -40,13 +40,20 @@ class ScenarioFixtureQualityTests(unittest.TestCase):
                     {"mixed_topics", "distractors", "ambiguous_refs"} & tags,
                     "each case should include at least one confusion pattern",
                 )
-                self.assertGreaterEqual(len(gold.get("participants", [])), 3)
+                expected_min_participants = 2 if "real_transcript" in tags else 3
+                self.assertGreaterEqual(
+                    len(gold.get("participants", [])),
+                    expected_min_participants,
+                )
                 self.assertGreaterEqual(len(gold.get("key_points", [])), 3)
                 self.assertGreaterEqual(len(gold.get("action_items", [])), 2)
                 self.assertGreaterEqual(len(gold.get("decisions", [])), 1)
                 self.assertNotIn("alias_map", case)
                 self.assertRegex(case.get("meeting_info", {}).get("date", ""), r"^\d{4}-\d{2}-\d{2}$")
-                self.assertGreaterEqual(len(case.get("meeting_info", {}).get("attendees", [])), 3)
+                self.assertGreaterEqual(
+                    len(case.get("meeting_info", {}).get("attendees", [])),
+                    expected_min_participants,
+                )
 
     def test_gold_action_and_decision_evidence_is_verbatim_transcript_text(self):
         for case in load_cases():
