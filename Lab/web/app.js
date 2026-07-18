@@ -363,12 +363,25 @@ async function loadScenarios() {
 }
 
 async function loadDemoCases() {
-  const data = await fetchJson("/api/demo/cases");
-  demoCases = data.cases || [];
-  demoCaseSelect.innerHTML = `
-    <option value="">选择一个样例</option>
-    ${demoCases.map((item) => `<option value="${escapeHtml(item.case_id)}">${escapeHtml(item.case_id)} | ${escapeHtml(item.scenario)}</option>`).join("")}
-  `;
+  try {
+    const data = await fetchJson("/api/demo/cases");
+    demoCases = data.cases || [];
+    if (!demoCases.length) {
+      demoCaseSelect.innerHTML = `<option value="">未找到样例，请重启 Lab 服务</option>`;
+      loadMockButton.disabled = true;
+      return;
+    }
+    loadMockButton.disabled = false;
+    demoCaseSelect.innerHTML = `
+      <option value="">选择一个样例</option>
+      ${demoCases.map((item) => `<option value="${escapeHtml(item.case_id)}">${escapeHtml(item.case_id)} | ${escapeHtml(item.scenario)}</option>`).join("")}
+    `;
+  } catch (error) {
+    demoCases = [];
+    loadMockButton.disabled = true;
+    demoCaseSelect.innerHTML = `<option value="">样例加载失败</option>`;
+    throw error;
+  }
 }
 
 async function loadRuns() {

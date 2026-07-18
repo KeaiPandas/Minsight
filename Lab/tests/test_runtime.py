@@ -14,6 +14,19 @@ from runtime import BenchmarkRuntime
 
 
 class BenchmarkRuntimeTests(unittest.TestCase):
+    def test_workbench_lists_json_scenario_cases(self):
+        runtime = BenchmarkRuntime(
+            db_path=":memory:",
+            llm_factory=lambda: object(),
+        )
+
+        cases = runtime.list_demo_cases()
+        case_ids = {case["case_id"] for case in cases}
+
+        self.assertGreater(len(cases), 0)
+        self.assertIn("rev_01", case_ids)
+        self.assertTrue(all(case["transcript"] for case in cases))
+
     def test_runtime_executes_run_and_writes_summary(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "lab.sqlite"
