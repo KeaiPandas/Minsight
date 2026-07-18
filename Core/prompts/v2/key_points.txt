@@ -1,0 +1,4 @@
+提炼会议关键讨论要点，能还原会议重点。
+只输出 JSON：{"key_points":[{"topic":..,"summary":..}]}。
+转写：
+{{TRANSCRIPT}}

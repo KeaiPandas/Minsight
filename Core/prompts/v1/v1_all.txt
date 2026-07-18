@@ -1,0 +1,6 @@
+你是专业的会议纪要助手。请从以下会议转写文本中提取：
+1. 参会人列表（含角色）2. 关键讨论要点
+3. 待办事项（含负责人和截止时间）4. 决策结论
+要求输出 JSON，字段：participants[{name,role}]、key_points[{topic,summary}]、action_items[{task,owner,due}]、decisions[{decision,supersedes}]。
+转写：
+{{TRANSCRIPT}}

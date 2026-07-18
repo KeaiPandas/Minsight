@@ -1,0 +1,77 @@
+# -*- coding: utf-8 -*-
+"""V2 LangGraph workflow built from explicit agents."""
+
+from typing import Any, Dict, List
+
+from langgraph.graph import END, StateGraph
+from typing_extensions import TypedDict
+
+from v2.agents.actions_decisions_agent import ActionsDecisionsAgent
+from v2.agents.key_points_agent import KeyPointsAgent
+from v2.agents.normalize_agent import NormalizeAgent
+from v2.agents.repair_agent import RepairAgent
+from v2.agents.validation_agent import ValidationAgent
+
+
+class S(TypedDict, total=False):
+    case: Any
+    participants: List
+    alias_map: Dict
+    key_points: List
+    action_items: List
+    decisions: List
+    result: Dict
+
+
+def build_app(llm):
+    repair_agent = RepairAgent()
+    normalize_agent = NormalizeAgent(repair_agent)
+    key_points_agent = KeyPointsAgent(repair_agent)
+    actions_decisions_agent = ActionsDecisionsAgent(repair_agent)
+    validation_agent = ValidationAgent()
+
+    def n_normalize(state: S):
+        participants, alias_map = normalize_agent.run(state["case"], llm)
+        return {"participants": participants, "alias_map": alias_map}
+
+    def n_keypoints(state: S):
+        return {"key_points": key_points_agent.run(state["case"], llm)}
+
+    def n_actions(state: S):
+        action_items, decisions = actions_decisions_agent.run(
+            state["case"],
+            state.get("alias_map", {}),
+            llm,
+        )
+        return {"action_items": action_items, "decisions": decisions}
+
+    def n_validate(state: S):
+        return {
+            "result": validation_agent.run(
+                state.get("participants", []),
+                state.get("key_points", []),
+                state.get("action_items", []),
+                state.get("decisions", []),
+                state.get("alias_map", {}),
+            )
+        }
+
+    g = StateGraph(S)
+    g.add_node("normalize", n_normalize)
+    g.add_node("key_points", n_keypoints)
+    g.add_node("actions", n_actions)
+    g.add_node("validate", n_validate)
+    g.set_entry_point("normalize")
+    g.add_edge("normalize", "key_points")
+    g.add_edge("normalize", "actions")
+    g.add_edge("key_points", "validate")
+    g.add_edge("actions", "validate")
+    g.add_edge("validate", END)
+    return g.compile()
+
+
+def extract_v2_graph(case, llm):
+    llm.set_case(case)
+    app = build_app(llm)
+    out = app.invoke({"case": case})
+    return out["result"]

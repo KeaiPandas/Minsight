@@ -1,0 +1,5 @@
+从会议转写中抽取待办与决策。要求：待办含 task/owner/due，owner 用真名，未提及截止时间则 due 置 null，不要臆造；决策取最终结论，若有反复用 supersedes 标注被推翻的旧结论；每条附 evidence。
+已知昵称映射：{{ALIAS_MAP}}
+只输出 JSON：{"action_items":[{"task":..,"owner":..,"due":..,"evidence":..}],"decisions":[{"decision":..,"supersedes":..,"evidence":..}]}。
+转写：
+{{TRANSCRIPT}}

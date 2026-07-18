@@ -1,0 +1,4 @@
+从会议转写中识别参会人真实姓名与角色，并给出昵称/花名到真名的映射。
+只输出 JSON：{"participants":[{"name":..,"role":..}],"alias_map":{}}。
+转写：
+{{TRANSCRIPT}}

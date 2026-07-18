@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minsight Workspace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-bg" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <span class="brand-mark">M</span>
+          <div class="brand-copy">
+            <strong>Minsight</strong>
+            <span>Meeting intelligence workspace</span>
+          </div>
+        </div>
+        <div class="topbar-badges">
+          <span class="badge badge-dot">Real LLM</span>
+          <span class="badge">V1 vs V2</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Meeting → Structured assets</p>
+          <h1>Turn messy meetings into structured assets, tasks &amp; evidence.</h1>
+          <p class="lede">
+            Run the V2 meeting workflow on a mock case or a pasted transcript, compare it against
+            the V1 baseline, and watch minutes become tracked, evidence-linked actions.
+          </p>
+          <div class="hero-chips">
+            <span class="chip"><span class="chip-dot"></span>Evidence-linked minutes</span>
+            <span class="chip"><span class="chip-dot"></span>Derived action closure</span>
+            <span class="chip"><span class="chip-dot"></span>Strong-model judge</span>
+          </div>
+        </div>
+        <aside class="hero-panel">
+          <div class="hero-panel-row">
+            <span>Primary view</span>
+            <strong>Workbench</strong>
+          </div>
+          <div class="hero-panel-divider"></div>
+          <div class="hero-panel-row">
+            <span>Validation</span>
+            <strong>Benchmark Lab</strong>
+          </div>
+          <div class="hero-panel-note">
+            V2 adds normalization, contracts, and self-repair on top of the single-call V1.
+          </div>
+        </aside>
+      </section>
+
+      <nav class="tabbar" role="tablist">
+        <button class="tab active" data-tab="workbench" role="tab">
+          <span class="tab-label">Workbench</span>
+          <span class="tab-sub">Run a meeting</span>
+        </button>
+        <button class="tab" data-tab="benchmark" role="tab">
+          <span class="tab-label">Benchmark</span>
+          <span class="tab-sub">Score the models</span>
+        </button>
+      </nav>
+
+      <section id="workbenchTab" class="tab-panel active">
+        <section class="control-panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Business demo</p>
+              <h2>Run a structured meeting</h2>
+            </div>
+            <div id="demoStatusPill" class="status-pill idle">Idle</div>
+          </div>
+
+          <div class="demo-controls">
+            <label class="field">
+              <span>Mock case</span>
+              <select id="demoCaseSelect"></select>
+            </label>
+
+            <button id="loadMockButton" class="secondary-button">Load transcript</button>
+
+            <label class="field field-wide">
+              <span>Meeting title</span>
+              <input id="demoTitleInput" class="text-input" type="text" placeholder="Decision review / weekly sync / ad hoc meeting" />
+            </label>
+
+            <label class="field field-full">
+              <span>Transcript</span>
+              <textarea id="demoTranscriptInput" class="transcript-input" placeholder="Paste a meeting transcript here, or load a mock case."></textarea>
+            </label>
+
+            <button id="demoRunButton" class="run-button">Run workspace demo</button>
+          </div>
+
+          <div id="demoMeta" class="run-meta"></div>
+          <div class="progress-shell">
+            <div class="progress-track">
+              <div id="demoProgressBar" class="progress-bar"></div>
+            </div>
+            <div id="demoProgressText" class="progress-text">Waiting to start</div>
+          </div>
+        </section>
+
+        <section class="results-grid">
+          <article class="score-card">
+            <div class="card-head">
+              <p>Recent meetings</p>
+              <h3>Workspace archive</h3>
+            </div>
+            <div id="meetingList" class="run-list empty">No workspace runs yet.</div>
+          </article>
+
+          <article class="history-card">
+            <div class="card-head">
+              <p>Model delta</p>
+              <h3>V1 vs V2</h3>
+            </div>
+            <div id="comparisonBoard" class="summary-board empty">Run a meeting to see why V2 is safer than V1.</div>
+          </article>
+        </section>
+
+        <section class="detail-card">
+          <div class="card-head">
+            <p>Readable minutes</p>
+            <h3>Structured meeting view</h3>
+          </div>
+          <div id="minutesBoard" class="case-table empty">Your human-readable minutes will appear here.</div>
+        </section>
+
+        <section class="results-grid">
+          <article class="score-card">
+            <div class="card-head">
+              <p>Derived tasks</p>
+              <h3>Action closure</h3>
+            </div>
+            <div id="tasksBoard" class="case-table empty">Derived mock tasks will appear here.</div>
+          </article>
+
+          <article class="history-card">
+            <div class="card-head">
+              <p>Cross-meeting signals</p>
+              <h3>Alerts</h3>
+            </div>
+            <div id="alertsBoard" class="case-table empty">Cross-meeting hints will appear here.</div>
+          </article>
+        </section>
+      </section>
+
+      <section id="benchmarkTab" class="tab-panel">
+        <section class="control-panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Run control</p>
+              <h2>Start a new Lab run</h2>
+            </div>
+            <div id="statusPill" class="status-pill idle">Idle</div>
+          </div>
+
+          <div class="controls">
+            <label class="field">
+              <span>Scenario</span>
+              <select id="scenarioSelect"></select>
+            </label>
+
+            <button id="runButton" class="run-button">Run Lab</button>
+          </div>
+
+          <div id="runMeta" class="run-meta"></div>
+          <div class="progress-shell">
+            <div class="progress-track">
+              <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div id="progressText" class="progress-text">Waiting to start</div>
+          </div>
+        </section>
+
+        <section class="results-grid">
+          <article class="score-card">
+            <div class="card-head">
+              <p>Latest summary</p>
+              <h3>Variant scores</h3>
+            </div>
+            <div id="summaryBoard" class="summary-board empty">No benchmark results yet.</div>
+          </article>
+
+          <article class="history-card">
+            <div class="card-head">
+              <p>Run archive</p>
+              <h3>Previous runs</h3>
+            </div>
+            <div id="runList" class="run-list empty">No previous runs.</div>
+          </article>
+        </section>
+
+        <section class="detail-card">
+          <div class="card-head">
+            <p>Case review</p>
+            <h3>Per-case judge output</h3>
+          </div>
+          <div id="caseTable" class="case-table empty">Run a benchmark to see per-case judge results here.</div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
