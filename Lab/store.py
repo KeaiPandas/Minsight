@@ -307,6 +307,45 @@ class BenchmarkStore:
             "run_created_at": row["run_created_at"],
         }
 
+    def get_previous_run(self, current_run_id, scenario):
+        """Return the latest completed run before current_run_id for the same scenario."""
+        with closing(self._connect()) as conn:
+            current = conn.execute(
+                "SELECT created_at FROM benchmark_runs WHERE run_id = ?",
+                (current_run_id,),
+            ).fetchone()
+            if not current:
+                return None
+            if scenario is None:
+                row = conn.execute(
+                    """
+                    SELECT run_id, scenario, v2_impl, created_at AS run_created_at
+                    FROM benchmark_runs
+                    WHERE run_id != ?
+                      AND scenario IS NULL
+                      AND status = 'completed'
+                      AND created_at < ?
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                    """,
+                    (current_run_id, current["created_at"]),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    """
+                    SELECT run_id, scenario, v2_impl, created_at AS run_created_at
+                    FROM benchmark_runs
+                    WHERE run_id != ?
+                      AND scenario = ?
+                      AND status = 'completed'
+                      AND created_at < ?
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                    """,
+                    (current_run_id, scenario, current["created_at"]),
+                ).fetchone()
+        return dict(row) if row else None
+
     def get_run(self, run_id):
         with closing(self._connect()) as conn:
             row = conn.execute(

@@ -120,21 +120,13 @@ class BenchmarkRuntime:
         active_predictions = [row for row in predictions if row["variant"] != "v1"]
         case_results = self._build_case_results(run_id, active_predictions, active_judgements)
         summary = self.aggregate_judgements(
-            [
-                {
-                    "variant": row["variant"],
-                    "score_participants": row["result"]["participants"],
-                    "score_key_points": row["result"]["key_points"],
-                    "score_action_items": row["result"]["action_items"],
-                    "score_decisions": row["result"]["decisions"],
-                    "score_overall": row["result"]["overall"],
-                }
-                for row in active_judgements
-            ]
+            self._judgement_rows_for_summary(active_judgements)
         )
+        summary_history_delta = self._build_summary_history_delta(store, run_id, run, summary)
         return {
             "run": run,
             "summary": summary,
+            "summary_history_delta": summary_history_delta,
             "judgements": judgements,
             "predictions": predictions,
             "case_results": case_results,
@@ -177,6 +169,43 @@ class BenchmarkRuntime:
                 for key, vals in bucket.items()
             }
         return out
+
+    def _judgement_rows_for_summary(self, judgements):
+        return [
+            {
+                "variant": row["variant"],
+                "score_participants": row["result"]["participants"],
+                "score_key_points": row["result"]["key_points"],
+                "score_action_items": row["result"]["action_items"],
+                "score_decisions": row["result"]["decisions"],
+                "score_overall": row["result"]["overall"],
+            }
+            for row in judgements
+        ]
+
+    def _build_summary_history_delta(self, store, run_id, run, summary):
+        score_keys = ("participants", "key_points", "action_items", "decisions", "overall")
+        previous_run = store.get_previous_run(run_id, run.get("scenario"))
+        if not previous_run:
+            return None
+        previous_judgements = [
+            row
+            for row in store.list_judgements(previous_run["run_id"])
+            if row["variant"] != "v1"
+        ]
+        previous_summary = self.aggregate_judgements(self._judgement_rows_for_summary(previous_judgements))
+        current_scores = summary.get("v2", {})
+        previous_scores = previous_summary.get("v2", {})
+        return {
+            "previous_run_id": previous_run["run_id"],
+            "previous_created_at": previous_run["run_created_at"],
+            "current": {key: current_scores.get(key, 0.0) for key in score_keys},
+            "previous": {key: previous_scores.get(key, 0.0) for key in score_keys},
+            "delta": {
+                key: (current_scores.get(key, 0.0) - previous_scores.get(key, 0.0))
+                for key in score_keys
+            },
+        }
 
     def _build_case_results(self, run_id, predictions, judgements):
         by_case = {}

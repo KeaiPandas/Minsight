@@ -229,6 +229,50 @@ class BenchmarkRuntimeTests(unittest.TestCase):
             self.assertAlmostEqual(delta["delta"]["decisions"], 0.0)
             self.assertAlmostEqual(delta["delta"]["overall"], 0.1)
 
+    def test_get_run_details_includes_summary_history_delta_for_same_scenario(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "lab.sqlite"
+            runtime = BenchmarkRuntime(
+                db_path=str(db_path),
+                results_dir=str(Path(tmpdir) / "results"),
+                llm_factory=lambda: object(),
+            )
+            store = runtime.store()
+            store.create_run("previous-run", "demo", "langgraph")
+            store.create_run("current-run", "demo", "langgraph")
+            store.update_run_status("previous-run", created_at="2026-07-18T01:00:00+00:00", status="completed")
+            store.update_run_status("current-run", created_at="2026-07-18T02:00:00+00:00", status="completed")
+            for run_id, score in (
+                ("previous-run", 0.5),
+                ("current-run", 0.75),
+            ):
+                store.save_judgement(
+                    run_id=run_id,
+                    case_id="case-1",
+                    scenario="demo",
+                    variant="v2",
+                    result={
+                        "participants": score,
+                        "key_points": score,
+                        "action_items": score,
+                        "decisions": score,
+                        "overall": score,
+                        "summary": run_id,
+                        "strengths": [],
+                        "issues": [],
+                    },
+                )
+
+            details = runtime.get_run_details("current-run")
+            delta = details["summary_history_delta"]
+
+            self.assertEqual(delta["previous_run_id"], "previous-run")
+            self.assertEqual(delta["previous_created_at"], "2026-07-18T01:00:00+00:00")
+            self.assertEqual(set(delta["current"]), {"participants", "key_points", "action_items", "decisions", "overall"})
+            self.assertAlmostEqual(delta["current"]["overall"], 0.75)
+            self.assertAlmostEqual(delta["previous"]["overall"], 0.5)
+            self.assertAlmostEqual(delta["delta"]["overall"], 0.25)
+
     def test_runtime_records_current_agent_errors_without_failing_run(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "lab.sqlite"

@@ -106,6 +106,24 @@ class BenchmarkStoreTests(unittest.TestCase):
             self.assertEqual(store.list_predictions("run-1"), [])
             self.assertEqual(store.list_judgements("run-1"), [])
 
+    def test_get_previous_run_returns_latest_completed_run_with_same_scenario(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "lab.sqlite"
+            store = BenchmarkStore(str(db_path))
+            store.init_schema()
+
+            store.create_run("older-same", "demo", "langgraph")
+            store.create_run("newer-other", "other", "langgraph")
+            store.create_run("current", "demo", "langgraph")
+            store.update_run_status("older-same", created_at="2026-07-18T01:00:00+00:00", status="completed")
+            store.update_run_status("newer-other", created_at="2026-07-18T02:00:00+00:00", status="completed")
+            store.update_run_status("current", created_at="2026-07-18T03:00:00+00:00", status="completed")
+
+            previous = store.get_previous_run("current", "demo")
+
+            self.assertEqual(previous["run_id"], "older-same")
+            self.assertEqual(previous["run_created_at"], "2026-07-18T01:00:00+00:00")
+
     def test_store_persists_meeting_assets_and_tasks(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "lab.sqlite"
