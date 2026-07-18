@@ -3,7 +3,7 @@
 `Lab/` now serves two purposes:
 
 1. `Benchmark`
-   Run V1 and V2 against the shared scenario set, persist predictions, and score them with the LLM judge.
+   Run the formal Minsight Agent against the shared scenario set, persist predictions, score them with the LLM judge, and compare each case with the previous run of the same task.
 2. `Workbench`
    Run a real transcript or mock case through V2, persist meeting assets, show readable minutes, evidence, derived tasks, and cross-meeting alerts.
 
@@ -42,6 +42,38 @@ SQLite now stores lightweight business assets in addition to benchmark records:
 - `meeting_actions`
 - `meeting_decisions`
 - `derived_tasks`
+
+## Benchmark Basis
+
+Benchmark cases are loaded from `Core/data/scenarios/*.json`.
+Each case has a human-authored `gold` answer for:
+
+- `participants`
+- `key_points`
+- `action_items`
+- `decisions`
+
+The current six scenarios intentionally cover different failure modes:
+
+| Scenario | Purpose |
+|---|---|
+| `decision_reversal` | Decision reversal and `supersedes`. |
+| `long_meeting` | Long context and late corrections. |
+| `missing_fields` | Missing owner/due fields and anti-hallucination. |
+| `mixed_language` | Chinese-English mixed terms. |
+| `multi_topic` | Topic switching and parking-lot filtering. |
+| `nickname_reference` | Nickname/reference resolution. |
+
+Scores shown in the UI come from LLM judge:
+
+1. Lab runs the formal Minsight Agent on the selected case set.
+2. Predictions and `gold` are persisted to SQLite.
+3. `judge.py` sends `transcript + gold + prediction` to the fixed judge prompt.
+4. The judge returns `0.0 ~ 1.0` scores for each dimension.
+5. The frontend renders them as percentages.
+6. If the same scenario/case has a previous V2 run, the frontend shows a heatmap of current score minus previous score.
+
+No embedding similarity API is used in the current benchmark flow.
 
 ## Run
 
@@ -115,3 +147,4 @@ The automated coverage now protects:
 - workbench meeting asset persistence
 - benchmark HTTP flow
 - workbench HTTP flow
+- scenario fixture complexity and gold coverage

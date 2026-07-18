@@ -17,7 +17,6 @@ if CORE_ROOT not in sys.path:
 
 from shared.dataio import list_scenarios, load_cases
 from shared.llm import LLMClient
-from v1.extractor import extract_v1
 from v2.graph import extract_v2_graph
 
 from judge import judge_prediction
@@ -37,7 +36,6 @@ class BenchmarkRuntime:
         results_dir=None,
         load_cases_fn=None,
         list_scenarios_fn=None,
-        v1_extractor=None,
         v2_extractor_factory=None,
         judge_fn=None,
         llm_factory=None,
@@ -46,7 +44,6 @@ class BenchmarkRuntime:
         self.results_dir = results_dir or os.path.join(ROOT, "results")
         self.load_cases_fn = load_cases_fn or load_cases
         self.list_scenarios_fn = list_scenarios_fn or list_scenarios
-        self.v1_extractor = v1_extractor or extract_v1
         self.v2_extractor_factory = v2_extractor_factory or self._default_v2_extractor_factory
         self.judge_fn = judge_fn or judge_prediction
         self.llm_factory = llm_factory or LLMClient
@@ -117,7 +114,9 @@ class BenchmarkRuntime:
             return None
         judgements = store.list_judgements(run_id)
         predictions = store.list_predictions(run_id)
-        case_results = self._build_case_results(predictions, judgements)
+        active_judgements = [row for row in judgements if row["variant"] != "v1"]
+        active_predictions = [row for row in predictions if row["variant"] != "v1"]
+        case_results = self._build_case_results(run_id, active_predictions, active_judgements)
         summary = self.aggregate_judgements(
             [
                 {
@@ -128,7 +127,7 @@ class BenchmarkRuntime:
                     "score_decisions": row["result"]["decisions"],
                     "score_overall": row["result"]["overall"],
                 }
-                for row in judgements
+                for row in active_judgements
             ]
         )
         return {
@@ -177,7 +176,7 @@ class BenchmarkRuntime:
             }
         return out
 
-    def _build_case_results(self, predictions, judgements):
+    def _build_case_results(self, run_id, predictions, judgements):
         by_case = {}
         for row in predictions:
             key = (row["scenario"], row["case_id"])
@@ -209,7 +208,32 @@ class BenchmarkRuntime:
             variant_entry = case_entry["variants"].setdefault(row["variant"], {})
             variant_entry["judgement"] = row["result"]
             variant_entry["created_at"] = row["created_at"]
+        self._attach_v2_history_deltas(run_id, by_case)
         return [by_case[key] for key in sorted(by_case.keys(), key=lambda item: (item[0], item[1]))]
+
+    def _attach_v2_history_deltas(self, run_id, by_case):
+        store = self.store()
+        score_keys = ("participants", "key_points", "action_items", "decisions", "overall")
+        for (scenario, case_id), case_entry in by_case.items():
+            current = case_entry.get("variants", {}).get("v2", {}).get("judgement")
+            if not current:
+                continue
+            previous = store.get_previous_v2_judgement(run_id, scenario, case_id)
+            if not previous:
+                case_entry["v2_history_delta"] = None
+                continue
+            previous_scores = previous["result"]
+            case_entry["v2_history_delta"] = {
+                "basis": "current_v2_minus_previous_v2",
+                "previous_run_id": previous["run_id"],
+                "previous_created_at": previous["run_created_at"],
+                "current": {key: current.get(key, 0.0) for key in score_keys},
+                "previous": {key: previous_scores.get(key, 0.0) for key in score_keys},
+                "delta": {
+                    key: (current.get(key, 0.0) - previous_scores.get(key, 0.0))
+                    for key in score_keys
+                },
+            }
 
     def _prediction_task(self, case, variant, impl, extractor):
         llm = self.llm_factory()
@@ -452,10 +476,7 @@ class BenchmarkRuntime:
     def run_benchmark_existing(self, run_id, scenario=None, plain=False):
         store = self.store()
         v2_impl, extract_v2 = self.get_v2_extractor(plain)
-        variants = {
-            "v1": ("single-call", self.v1_extractor),
-            "v2": (v2_impl, extract_v2),
-        }
+        variants = {"v2": (v2_impl, extract_v2)}
         cases = self.load_cases_fn(scenario)
         prediction_jobs = [
             (case, variant, impl, extractor)

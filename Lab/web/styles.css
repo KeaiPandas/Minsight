@@ -314,6 +314,26 @@ body {
 .card-head h3 { font-size: 22px; }
 .card-head p { margin-bottom: 6px; }
 
+.archive-filter {
+  min-width: 190px;
+}
+
+.archive-filter span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.archive-filter select {
+  min-height: 42px;
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
 /* ---------- Status pill ---------- */
 
 .status-pill {
@@ -620,6 +640,92 @@ select:focus,
 
 .detail-grid { margin-top: 16px; }
 
+.heatmap-card {
+  margin-top: 16px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(135deg, rgba(47, 111, 94, 0.08), transparent 42%),
+    linear-gradient(180deg, var(--surface) 0%, var(--surface-soft) 100%);
+}
+
+.heatmap-card.empty-heatmap {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.heatmap-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.heatmap-title {
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.heatmap-note {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.heat-cell {
+  min-height: 92px;
+  padding: 13px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.heat-cell span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.heat-cell strong {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.heat-cell small {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.heat-cell.up {
+  background: linear-gradient(180deg, rgba(47, 111, 94, 0.20), rgba(47, 111, 94, 0.07));
+  border-color: rgba(47, 111, 94, 0.28);
+}
+.heat-cell.up strong { color: var(--good); }
+
+.heat-cell.down {
+  background: linear-gradient(180deg, rgba(192, 85, 47, 0.20), rgba(192, 85, 47, 0.07));
+  border-color: rgba(192, 85, 47, 0.30);
+}
+.heat-cell.down strong { color: var(--brand-ink); }
+
+.heat-cell.flat {
+  background: linear-gradient(180deg, rgba(138, 127, 113, 0.14), rgba(138, 127, 113, 0.05));
+}
+.heat-cell.flat strong { color: var(--muted); }
+
 .case-top {
   display: flex;
   justify-content: space-between;
@@ -763,6 +869,7 @@ select:focus,
   .demo-controls,
   .minutes-grid,
   .raw-output-grid,
+  .heatmap-grid,
   .variant-grid {
     grid-template-columns: 1fr;
   }

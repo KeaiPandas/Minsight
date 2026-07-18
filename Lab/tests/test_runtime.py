@@ -42,9 +42,6 @@ class BenchmarkRuntimeTests(unittest.TestCase):
                     }
                 ]
 
-            def fake_v1(case, _llm):
-                return {"variant": "v1", "case_id": case["id"]}
-
             def fake_v2(case, _llm):
                 return {"variant": "v2", "case_id": case["id"]}
 
@@ -65,7 +62,6 @@ class BenchmarkRuntimeTests(unittest.TestCase):
                 results_dir=str(results_dir),
                 load_cases_fn=fake_cases,
                 list_scenarios_fn=lambda: ["demo"],
-                v1_extractor=fake_v1,
                 v2_extractor_factory=lambda plain: ("langgraph", fake_v2),
                 judge_fn=fake_judge,
                 llm_factory=lambda: object(),
@@ -74,14 +70,14 @@ class BenchmarkRuntimeTests(unittest.TestCase):
             result = runtime.run_benchmark(scenario="demo")
 
             self.assertEqual(result["v2_impl"], "langgraph")
-            self.assertIn("v1", result["summary"])
             self.assertIn("v2", result["summary"])
+            self.assertNotIn("v1", result["summary"])
             report_path = Path(result["report_path"])
             self.assertTrue(report_path.exists())
             report = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(report["run_id"], result["run_id"])
 
-    def test_get_run_details_groups_results_by_case_and_variant(self):
+    def test_get_run_details_hides_archived_v1_results(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "lab.sqlite"
             runtime = BenchmarkRuntime(
@@ -125,14 +121,80 @@ class BenchmarkRuntimeTests(unittest.TestCase):
             self.assertEqual(len(details["case_results"]), 1)
             case_result = details["case_results"][0]
             self.assertEqual(case_result["case_id"], "case-1")
-            self.assertIn("v1", case_result["variants"])
+            self.assertNotIn("v1", case_result["variants"])
             self.assertIn("v2", case_result["variants"])
+            self.assertNotIn("v1", details["summary"])
             self.assertEqual(
                 case_result["variants"]["v2"]["judgement"]["overall"],
                 1.0,
             )
 
-    def test_runtime_records_extractor_errors_without_failing_run(self):
+    def test_get_run_details_includes_v2_history_score_deltas(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "lab.sqlite"
+            runtime = BenchmarkRuntime(
+                db_path=str(db_path),
+                results_dir=str(Path(tmpdir) / "results"),
+                llm_factory=lambda: object(),
+            )
+            store = runtime.store()
+            store.create_run("previous-run", "demo", "langgraph")
+            store.create_run("current-run", "demo", "langgraph")
+            store.update_run_status("previous-run", created_at="2026-07-18T01:00:00+00:00")
+            store.update_run_status("current-run", created_at="2026-07-18T02:00:00+00:00")
+            scores = {
+                "previous-run": {
+                    "participants": 0.2,
+                    "key_points": 0.5,
+                    "action_items": 0.7,
+                    "decisions": 0.6,
+                    "overall": 0.5,
+                },
+                "current-run": {
+                    "participants": 0.4,
+                    "key_points": 0.8,
+                    "action_items": 0.6,
+                    "decisions": 0.6,
+                    "overall": 0.6,
+                },
+            }
+            for run_id, result in scores.items():
+                store.save_prediction(
+                    run_id=run_id,
+                    case_id="case-1",
+                    scenario="demo",
+                    variant="v2",
+                    impl="langgraph",
+                    transcript="meeting transcript",
+                    gold={"participants": []},
+                    output={"participants": [run_id]},
+                    routing=[],
+                )
+                store.save_judgement(
+                    run_id=run_id,
+                    case_id="case-1",
+                    scenario="demo",
+                    variant="v2",
+                    result={
+                        **result,
+                        "summary": run_id,
+                        "strengths": [],
+                        "issues": [],
+                    },
+                )
+
+            details = runtime.get_run_details("current-run")
+            delta = details["case_results"][0]["v2_history_delta"]
+
+            self.assertEqual(delta["basis"], "current_v2_minus_previous_v2")
+            self.assertEqual(delta["previous_run_id"], "previous-run")
+            self.assertAlmostEqual(delta["delta"]["participants"], 0.2)
+            self.assertAlmostEqual(delta["delta"]["key_points"], 0.3)
+            self.assertAlmostEqual(delta["delta"]["action_items"], -0.1)
+            self.assertAlmostEqual(delta["delta"]["decisions"], 0.0)
+            self.assertAlmostEqual(delta["delta"]["overall"], 0.1)
+
+    def test_runtime_records_current_agent_errors_without_failing_run(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "lab.sqlite"
 
@@ -146,17 +208,8 @@ class BenchmarkRuntimeTests(unittest.TestCase):
                     }
                 ]
 
-            def broken_v1(_case, _llm):
+            def broken_v2(_case, _llm):
                 raise json.JSONDecodeError("Expecting value", "```json", 0)
-
-            def fake_v2(case, _llm):
-                return {
-                    "participants": [],
-                    "key_points": [],
-                    "action_items": [],
-                    "decisions": [],
-                    "case_id": case["id"],
-                }
 
             def fake_judge(**kwargs):
                 prediction = kwargs["prediction"]
@@ -177,19 +230,18 @@ class BenchmarkRuntimeTests(unittest.TestCase):
                 results_dir=str(Path(tmpdir) / "results"),
                 load_cases_fn=fake_cases,
                 list_scenarios_fn=lambda: ["demo"],
-                v1_extractor=broken_v1,
-                v2_extractor_factory=lambda plain: ("langgraph", fake_v2),
+                v2_extractor_factory=lambda plain: ("langgraph", broken_v2),
                 judge_fn=fake_judge,
                 llm_factory=lambda: object(),
             )
 
             result = runtime.run_benchmark(scenario="demo")
             details = runtime.get_run_details(result["run_id"])
-            v1_prediction = details["case_results"][0]["variants"]["v1"]["prediction"]["output"]
+            v2_prediction = details["case_results"][0]["variants"]["v2"]["prediction"]["output"]
 
             self.assertEqual(details["run"]["status"], "completed")
-            self.assertEqual(v1_prediction["_extract_error"], "JSONDecodeError")
-            self.assertEqual(result["summary"]["v1"]["overall"], 0.0)
+            self.assertEqual(v2_prediction["_extract_error"], "JSONDecodeError")
+            self.assertEqual(result["summary"]["v2"]["overall"], 0.0)
 
     def test_demo_run_persists_minutes_tasks_and_duplicate_alerts(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -206,9 +258,6 @@ class BenchmarkRuntimeTests(unittest.TestCase):
 
             def fake_load_cases(_scenario):
                 return cases
-
-            def fake_v1(_case, _llm):
-                raise AssertionError("workbench should not run v1")
 
             def fake_v2(_case, _llm):
                 return {
@@ -237,7 +286,6 @@ class BenchmarkRuntimeTests(unittest.TestCase):
                 results_dir=str(Path(tmpdir) / "results"),
                 load_cases_fn=fake_load_cases,
                 list_scenarios_fn=lambda: ["demo"],
-                v1_extractor=fake_v1,
                 v2_extractor_factory=lambda plain: ("langgraph", fake_v2),
                 llm_factory=lambda: object(),
             )

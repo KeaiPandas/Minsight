@@ -7,6 +7,7 @@ const statusPill = document.getElementById("statusPill");
 const runMeta = document.getElementById("runMeta");
 const summaryBoard = document.getElementById("summaryBoard");
 const runList = document.getElementById("runList");
+const runArchiveScenarioSelect = document.getElementById("runArchiveScenarioSelect");
 const caseTable = document.getElementById("caseTable");
 const progressBar = document.getElementById("progressBar");
 const progressText = document.getElementById("progressText");
@@ -31,6 +32,7 @@ let demoPollTimer = null;
 let activeRunId = null;
 let activeMeetingId = null;
 let demoCases = [];
+let allRuns = [];
 
 async function fetchJson(url, options) {
   const response = await fetch(url, options);
@@ -48,6 +50,22 @@ function setStatus(element, kind, text) {
 
 function formatScore(score) {
   return `${((score || 0) * 100).toFixed(1)}%`;
+}
+
+function formatDelta(score) {
+  const value = score || 0;
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${(value * 100).toFixed(1)}pp`;
+}
+
+function variantLabel(variant) {
+  if (variant === "v2") {
+    return "Minsight Agent";
+  }
+  if (variant === "v1") {
+    return "V1 Archive";
+  }
+  return variant.toUpperCase();
 }
 
 function formatJson(value) {
@@ -96,7 +114,7 @@ function updateDemoProgress(meeting) {
 }
 
 function renderSummary(summary) {
-  const variants = Object.entries(summary || {});
+  const variants = Object.entries(summary || {}).filter(([variant]) => variant !== "v1");
   if (!variants.length) {
     summaryBoard.className = "summary-board empty";
     summaryBoard.textContent = "暂无基准结果。";
@@ -107,7 +125,7 @@ function renderSummary(summary) {
     <div class="variant-grid">
       ${variants.map(([variant, scores]) => `
         <div class="variant-card">
-          <h4>${variant.toUpperCase()}</h4>
+          <h4>${variantLabel(variant)}</h4>
           ${[
             ["参会人", scores.participants],
             ["要点", scores.key_points],
@@ -126,14 +144,19 @@ function renderSummary(summary) {
   `;
 }
 
-function renderRuns(runs) {
-  if (!runs.length) {
+function renderRuns(runs, filterScenario = "") {
+  const visibleRuns = filterScenario
+    ? runs.filter((run) => run.scenario === filterScenario)
+    : runs;
+  if (!visibleRuns.length) {
     runList.className = "run-list empty";
-    runList.textContent = "暂无历史运行。";
+    runList.textContent = filterScenario
+      ? `暂无 ${filterScenario} 的历史运行。`
+      : "暂无历史运行。";
     return;
   }
   runList.className = "run-list";
-  runList.innerHTML = runs.map((run) => `
+  runList.innerHTML = visibleRuns.map((run) => `
     <div class="history-row ${activeRunId === run.run_id ? "selected" : ""}" data-run-id="${run.run_id}">
       <button class="history-item" data-open-run-id="${run.run_id}">
         <div class="run-id">${run.run_id.slice(0, 8)}</div>
@@ -169,11 +192,54 @@ function renderCases(data) {
           <div class="case-title">${escapeHtml(item.case_id)} | ${escapeHtml(item.scenario)}</div>
         </div>
       </div>
+      ${renderV2HistoryHeatmap(item.v2_history_delta)}
       <div class="variant-grid detail-grid">
-        ${["v1", "v2"].map((variant) => renderVariantDetail(item, variant)).join("")}
+        ${Object.keys(item.variants || {}).filter((variant) => variant !== "v1").sort().map((variant) => renderVariantDetail(item, variant)).join("")}
       </div>
     </article>
   `).join("");
+}
+
+function renderV2HistoryHeatmap(delta) {
+  if (!delta) {
+    return `
+      <section class="heatmap-card empty-heatmap">
+        <div class="heatmap-title">暂无上一次同任务结果</div>
+        <div class="heatmap-note">再次运行同一个数据集后，这里会显示本次 Minsight Agent 相对上一次的分数变化。</div>
+      </section>
+    `;
+  }
+  const metrics = [
+    ["participants", "参会人"],
+    ["key_points", "要点"],
+    ["action_items", "待办"],
+    ["decisions", "决策"],
+    ["overall", "总体"],
+  ];
+  return `
+    <section class="heatmap-card">
+      <div class="heatmap-head">
+        <div>
+          <div class="case-variant">V2 历史对比热力图</div>
+          <div class="heatmap-title">本次 Minsight Agent - 上一次同任务</div>
+        </div>
+        <div class="heatmap-note">对比 run ${escapeHtml((delta.previous_run_id || "").slice(0, 8))}</div>
+      </div>
+      <div class="heatmap-grid">
+        ${metrics.map(([key, label]) => {
+          const value = delta.delta?.[key] || 0;
+          const tone = value > 0.001 ? "up" : value < -0.001 ? "down" : "flat";
+          return `
+            <div class="heat-cell ${tone}">
+              <span>${label}</span>
+              <strong>${formatDelta(value)}</strong>
+              <small>${formatScore(delta.previous?.[key])} → ${formatScore(delta.current?.[key])}</small>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function renderVariantDetail(item, variant) {
@@ -181,7 +247,7 @@ function renderVariantDetail(item, variant) {
   if (!entry) {
     return `
       <section class="variant-card detail-card">
-        <h4>${variant.toUpperCase()}</h4>
+        <h4>${variantLabel(variant)}</h4>
         <div class="judge-text">该版本暂无结果。</div>
       </section>
     `;
@@ -190,7 +256,7 @@ function renderVariantDetail(item, variant) {
   return `
     <section class="variant-card detail-card">
       <div class="case-top">
-        <div class="case-variant">${variant.toUpperCase()}</div>
+        <div class="case-variant">${variantLabel(variant)}</div>
         <div>${entry.created_at ? new Date(entry.created_at).toLocaleString() : ""}</div>
       </div>
       ${result ? [
@@ -360,6 +426,10 @@ async function loadScenarios() {
     <option value="">全部场景</option>
     ${data.scenarios.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("")}
   `;
+  runArchiveScenarioSelect.innerHTML = `
+    <option value="">全部任务</option>
+    ${data.scenarios.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("")}
+  `;
 }
 
 async function loadDemoCases() {
@@ -386,7 +456,8 @@ async function loadDemoCases() {
 
 async function loadRuns() {
   const data = await fetchJson("/api/runs");
-  renderRuns(data.runs || []);
+  allRuns = data.runs || [];
+  renderRuns(allRuns, runArchiveScenarioSelect.value || "");
 }
 
 async function loadMeetings() {
@@ -399,7 +470,7 @@ async function loadRun(runId) {
   activeRunId = data.run.run_id;
   renderSummary(data.summary);
   renderCases(data);
-  runMeta.textContent = `查看运行 ${data.run.run_id} | 场景=${data.run.scenario || "全部"} | v2=${data.run.v2_impl}`;
+    runMeta.textContent = `查看运行 ${data.run.run_id} | 场景=${data.run.scenario || "全部"} | agent=${data.run.v2_impl}`;
   updateProgress(data.run);
   if (data.run.status === "completed") {
     setStatus(statusPill, "done", "完成");
@@ -509,7 +580,7 @@ runButton.addEventListener("click", async () => {
     runButton.disabled = true;
     stopPolling();
     setStatus(statusPill, "running", "运行中");
-    runMeta.textContent = "正在用真实 LLM 运行 V1 / V2 基准评测，可能需要一会儿。";
+    runMeta.textContent = "正在用真实 LLM 运行 Minsight Agent 回归评测，可能需要一会儿。";
     progressBar.style.width = "0%";
     progressText.textContent = "排队中 | 0/0 | - | -";
     const result = await fetchJson("/api/run", {
@@ -524,6 +595,10 @@ runButton.addEventListener("click", async () => {
     runMeta.textContent = error.message;
     runButton.disabled = false;
   }
+});
+
+runArchiveScenarioSelect.addEventListener("change", () => {
+  renderRuns(allRuns, runArchiveScenarioSelect.value || "");
 });
 
 demoRunButton.addEventListener("click", async () => {

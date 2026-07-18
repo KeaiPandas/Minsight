@@ -54,7 +54,6 @@ class ServerApiTests(unittest.TestCase):
                 results_dir=str(results_dir),
                 load_cases_fn=fake_cases,
                 list_scenarios_fn=lambda: ["demo"],
-                v1_extractor=fake_extract,
                 v2_extractor_factory=lambda plain: ("langgraph", fake_extract),
                 judge_fn=fake_judge,
                 llm_factory=lambda: object(),
@@ -106,7 +105,6 @@ class ServerApiTests(unittest.TestCase):
                 results_dir=str(Path(tmpdir) / "results"),
                 load_cases_fn=lambda _scenario: [],
                 list_scenarios_fn=lambda: ["demo"],
-                v1_extractor=lambda case, _llm: case,
                 v2_extractor_factory=lambda plain: ("langgraph", lambda case, _llm: case),
                 judge_fn=lambda **_kwargs: {},
                 llm_factory=lambda: object(),
@@ -146,15 +144,6 @@ class ServerApiTests(unittest.TestCase):
                     }
                 ]
 
-            def fake_v1(_case, _llm):
-                return {
-                    "participants": [],
-                    "key_points": [],
-                    "action_items": [],
-                    "decisions": [],
-                    "_format_valid": False,
-                }
-
             def fake_v2(_case, _llm):
                 return {
                     "participants": [{"name": "Alice", "role": "PM"}],
@@ -182,7 +171,6 @@ class ServerApiTests(unittest.TestCase):
                 results_dir=str(Path(tmpdir) / "results"),
                 load_cases_fn=fake_load_cases,
                 list_scenarios_fn=lambda: ["demo"],
-                v1_extractor=fake_v1,
                 v2_extractor_factory=lambda plain: ("langgraph", fake_v2),
                 llm_factory=lambda: object(),
             )

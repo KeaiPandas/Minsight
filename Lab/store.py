@@ -262,6 +262,42 @@ class BenchmarkStore:
             for row in rows
         ]
 
+    def get_previous_v2_judgement(self, current_run_id, scenario, case_id):
+        with closing(self._connect()) as conn:
+            current = conn.execute(
+                "SELECT created_at FROM benchmark_runs WHERE run_id = ?",
+                (current_run_id,),
+            ).fetchone()
+            if not current:
+                return None
+            row = conn.execute(
+                """
+                SELECT j.run_id, j.case_id, j.scenario, j.variant, j.raw_json,
+                       j.created_at, r.created_at AS run_created_at
+                FROM judgements j
+                JOIN benchmark_runs r ON r.run_id = j.run_id
+                WHERE j.variant = 'v2'
+                  AND j.scenario = ?
+                  AND j.case_id = ?
+                  AND j.run_id != ?
+                  AND r.created_at < ?
+                ORDER BY r.created_at DESC
+                LIMIT 1
+                """,
+                (scenario, case_id, current_run_id, current["created_at"]),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "run_id": row["run_id"],
+            "case_id": row["case_id"],
+            "scenario": row["scenario"],
+            "variant": row["variant"],
+            "result": json.loads(row["raw_json"]),
+            "created_at": row["created_at"],
+            "run_created_at": row["run_created_at"],
+        }
+
     def get_run(self, run_id):
         with closing(self._connect()) as conn:
             row = conn.execute(
