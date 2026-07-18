@@ -6,6 +6,7 @@ import json
 from shared.meeting_info import build_roster_aliases, get_meeting_date, get_meeting_info
 from shared.models import ActionsDecisionsOut, parse_as
 from v2.agents.base import BaseStructuredAgent
+from v2.agents.concurrency import map_segments
 
 
 class ActionsDecisionsAgent(BaseStructuredAgent):
@@ -37,14 +38,11 @@ class ActionsDecisionsAgent(BaseStructuredAgent):
         decisions = []
         seen_actions = set()
         seen_decisions = set()
-        for segment in segments:
-            raw = self._complete(
-                llm,
-                transcript=segment["text"],
-                alias_map=json.dumps(authoritative_alias_map, ensure_ascii=False, indent=2),
-                meeting_date=get_meeting_date(case),
-            )
-            out, ok = parse_as(self.output_model, raw, self._repair_fn(llm))
+        outputs = map_segments(
+            lambda segment: self._run_segment(case, segment, authoritative_alias_map, llm),
+            segments,
+        )
+        for out, ok in outputs:
             if not ok:
                 continue
             for item in out.action_items:
@@ -60,6 +58,15 @@ class ActionsDecisionsAgent(BaseStructuredAgent):
                 seen_decisions.add(key)
                 decisions.append(item)
         return actions, decisions
+
+    def _run_segment(self, case, segment, alias_map, llm):
+        raw = self._complete(
+            llm,
+            transcript=segment["text"],
+            alias_map=json.dumps(alias_map, ensure_ascii=False, indent=2),
+            meeting_date=get_meeting_date(case),
+        )
+        return parse_as(self.output_model, raw, self._repair_fn(llm))
 
 
 def _action_key(item):

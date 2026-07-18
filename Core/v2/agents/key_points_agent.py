@@ -3,6 +3,7 @@
 
 from shared.models import KeyPointsOut, parse_as
 from v2.agents.base import BaseStructuredAgent
+from v2.agents.concurrency import map_segments
 
 
 class KeyPointsAgent(BaseStructuredAgent):
@@ -17,9 +18,8 @@ class KeyPointsAgent(BaseStructuredAgent):
     def run_many(self, segments, llm):
         key_points = []
         seen = set()
-        for segment in segments:
-            raw = self._complete(llm, transcript=segment["text"])
-            out, ok = parse_as(self.output_model, raw, self._repair_fn(llm))
+        outputs = map_segments(lambda segment: self._run_segment(segment, llm), segments)
+        for out, ok in outputs:
             if not ok:
                 continue
             for item in out.key_points:
@@ -29,6 +29,10 @@ class KeyPointsAgent(BaseStructuredAgent):
                 seen.add(key)
                 key_points.append(item)
         return key_points
+
+    def _run_segment(self, segment, llm):
+        raw = self._complete(llm, transcript=segment["text"])
+        return parse_as(self.output_model, raw, self._repair_fn(llm))
 
 
 def _dedupe_key(*values):

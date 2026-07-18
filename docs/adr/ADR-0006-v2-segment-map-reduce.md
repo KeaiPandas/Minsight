@@ -28,13 +28,24 @@ Add deterministic segmentation before extraction:
 - `ActionsDecisionsAgent.run_many()` maps over segments while injecting the
   alias map and meeting date into every call, then reduces duplicate actions and
   decisions.
+- Segment map calls run concurrently through a shared `ThreadPoolExecutor`
+  helper. The workflow preserves input segment order before dedupe/reduce, so
+  concurrency improves latency without changing result ordering semantics.
+- `MINSIGHT_SEGMENT_WORKERS` controls per-agent segment concurrency and defaults
+  to `4`.
+- `KeyPointsReduceAgent` performs meeting-level compression when segment-level
+  candidates exceed the desired final range. It removes off-topic chatter and
+  merges fragmented process notes into business topics.
+- `DecisionFilterAgent` filters candidate decisions to topic-level final
+  decisions, removing clarifications, process discussion, implementation notes,
+  and duplicates.
 - `NormalizeAgent` still reads the full transcript so participant and alias
   extraction stays global.
 
 The LangGraph flow is now:
 
 ```text
-segment -> normalize -> key_points/actions_decisions -> validate
+segment -> normalize -> key_points/actions_decisions -> key_points_reduce/decision_filter -> validate
 ```
 
 ## Consequences
@@ -44,15 +55,21 @@ segment -> normalize -> key_points/actions_decisions -> validate
 - Short meetings keep the previous cost profile.
 - Roster and meeting-date context remain first-class inputs for nickname and
   relative-date handling.
-- Reduce logic is intentionally simple and deterministic. If later benchmark
-  runs show over-merging or under-merging, that reducer can evolve behind the
-  same `run_many()` seam.
+- Candidate dedupe remains deterministic, while final key-point reduce and
+  decision filtering use focused LLM calls. This keeps recall and precision as
+  separate workflow responsibilities.
+- Benchmark runs are faster on long scenarios because segment extraction can
+  overlap remote LLM latency. Very high values for `MINSIGHT_SEGMENT_WORKERS`
+  may hit provider rate limits, so the default stays conservative.
+- Decision filtering directly targets benchmark failures where clarification
+  statements, implementation details, or repeated process discussion were
+  incorrectly reported as final decisions.
 
 ## Follow-Ups
 
 - Add a long-meeting-only verify pass for missing topic-level decisions.
-- Consider a two-step decision extractor: recall candidate decisions first, then
-  filter with the annotation rubric.
+- Add segment relevance gating for real transcripts with heavy off-topic
+  sections.
 - Expose segment-level routing/traces in Lab only if it helps debugging without
   cluttering the demo.
 

@@ -4,6 +4,8 @@
 Core 已移除离线模拟链路，运行前必须在 .env 中配置至少一个可用 profile。
 """
 
+import threading
+
 from shared import config
 from shared.backends.real import RealBackend
 
@@ -12,6 +14,7 @@ class LLMClient:
     def __init__(self):
         self._case = None
         self.call_log = []
+        self._lock = threading.Lock()
         if not config.any_profile_configured():
             raise RuntimeError("no LLM profile configured in .env")
         self.backend = RealBackend()
@@ -23,5 +26,6 @@ class LLMClient:
 
     def complete(self, prompt, agent):
         model, profile = self.backend.resolve(agent)
-        self.call_log.append({"agent": agent, "profile": profile, "model": model})
+        with self._lock:
+            self.call_log.append({"agent": agent, "profile": profile, "model": model})
         return self.backend.complete(prompt, agent, self._case)

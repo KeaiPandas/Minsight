@@ -75,6 +75,10 @@ class ActionsDecisionsOut(BaseModel):
     decisions: List[Decision]
 
 
+class DecisionsOut(BaseModel):
+    decisions: List[Decision]
+
+
 # ---------- 解析 + 校验（含带错误消息的自修复回环）----------
 
 def parse_as(model_cls, raw, repair_fn=None):

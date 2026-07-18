@@ -7,7 +7,9 @@ from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
 
 from v2.agents.actions_decisions_agent import ActionsDecisionsAgent
+from v2.agents.decision_filter_agent import DecisionFilterAgent
 from v2.agents.key_points_agent import KeyPointsAgent
+from v2.agents.key_points_reduce_agent import KeyPointsReduceAgent
 from v2.agents.normalize_agent import NormalizeAgent
 from v2.agents.repair_agent import RepairAgent
 from v2.agents.segment_agent import SegmentAgent
@@ -30,7 +32,9 @@ def build_app(llm):
     segment_agent = SegmentAgent()
     normalize_agent = NormalizeAgent(repair_agent)
     key_points_agent = KeyPointsAgent(repair_agent)
+    key_points_reduce_agent = KeyPointsReduceAgent(repair_agent)
     actions_decisions_agent = ActionsDecisionsAgent(repair_agent)
+    decision_filter_agent = DecisionFilterAgent(repair_agent)
     validation_agent = ValidationAgent()
 
     def n_segment(state: S):
@@ -43,6 +47,9 @@ def build_app(llm):
     def n_keypoints(state: S):
         segments = state.get("segments") or [{"text": state["case"]["transcript"]}]
         return {"key_points": key_points_agent.run_many(segments, llm)}
+
+    def n_keypoints_reduce(state: S):
+        return {"key_points": key_points_reduce_agent.run(state.get("key_points", []), llm)}
 
     def n_actions(state: S):
         segments = state.get("segments") or [{"text": state["case"]["transcript"]}]
@@ -61,6 +68,9 @@ def build_app(llm):
             )
         return {"action_items": action_items, "decisions": decisions}
 
+    def n_decision_filter(state: S):
+        return {"decisions": decision_filter_agent.run(state.get("decisions", []), llm)}
+
     def n_validate(state: S):
         return {
             "result": validation_agent.run(
@@ -76,14 +86,18 @@ def build_app(llm):
     g.add_node("segment", n_segment)
     g.add_node("normalize", n_normalize)
     g.add_node("key_points", n_keypoints)
+    g.add_node("key_points_reduce", n_keypoints_reduce)
     g.add_node("actions", n_actions)
+    g.add_node("decision_filter", n_decision_filter)
     g.add_node("validate", n_validate)
     g.set_entry_point("segment")
     g.add_edge("segment", "normalize")
     g.add_edge("normalize", "key_points")
     g.add_edge("normalize", "actions")
-    g.add_edge("key_points", "validate")
-    g.add_edge("actions", "validate")
+    g.add_edge("key_points", "key_points_reduce")
+    g.add_edge("actions", "decision_filter")
+    g.add_edge("key_points_reduce", "validate")
+    g.add_edge("decision_filter", "validate")
     g.add_edge("validate", END)
     return g.compile()
 
