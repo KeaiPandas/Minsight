@@ -94,7 +94,7 @@ function renderSummary(summary) {
   const variants = Object.entries(summary || {});
   if (!variants.length) {
     summaryBoard.className = "summary-board empty";
-    summaryBoard.textContent = "No benchmark results yet.";
+    summaryBoard.textContent = "暂无基准结果。";
     return;
   }
   summaryBoard.className = "summary-board";
@@ -104,11 +104,11 @@ function renderSummary(summary) {
         <div class="variant-card">
           <h4>${variant.toUpperCase()}</h4>
           ${[
-            ["Participants", scores.participants],
-            ["Key Points", scores.key_points],
-            ["Actions", scores.action_items],
-            ["Decisions", scores.decisions],
-            ["Overall", scores.overall],
+            ["参会人", scores.participants],
+            ["要点", scores.key_points],
+            ["待办", scores.action_items],
+            ["决策", scores.decisions],
+            ["总体", scores.overall],
           ].map(([label, value]) => `
             <div class="metric-row">
               <span>${label}</span>
@@ -124,7 +124,7 @@ function renderSummary(summary) {
 function renderRuns(runs) {
   if (!runs.length) {
     runList.className = "run-list empty";
-    runList.textContent = "No previous runs.";
+    runList.textContent = "暂无历史运行。";
     return;
   }
   runList.className = "run-list";
@@ -133,11 +133,11 @@ function renderRuns(runs) {
       <button class="history-item" data-open-run-id="${run.run_id}">
         <div class="run-id">${run.run_id.slice(0, 8)}</div>
         <div class="meta">
-          scenario: ${escapeHtml(run.scenario || "all")} | v2: ${escapeHtml(run.v2_impl)} | ${new Date(run.created_at).toLocaleString()}
+          场景：${escapeHtml(run.scenario || "全部")} ｜ v2：${escapeHtml(run.v2_impl)} ｜ ${new Date(run.created_at).toLocaleString()}
         </div>
       </button>
-      <button class="history-delete" data-delete-run-id="${run.run_id}" aria-label="Delete run ${run.run_id.slice(0, 8)}">
-        Delete
+      <button class="history-delete" data-delete-run-id="${run.run_id}" aria-label="删除运行 ${run.run_id.slice(0, 8)}">
+        删除
       </button>
     </div>
   `).join("");
@@ -158,7 +158,7 @@ function renderCases(data) {
   const cases = data.case_results || [];
   if (!cases.length) {
     caseTable.className = "case-table empty";
-    caseTable.textContent = "Run a benchmark to see per-case judge results here.";
+    caseTable.textContent = "运行基准后，这里显示逐条评审结果。";
     return;
   }
   caseTable.className = "case-table";
@@ -166,7 +166,7 @@ function renderCases(data) {
     <article class="case-item">
       <div class="case-top">
         <div>
-          <div class="case-variant">dataset</div>
+          <div class="case-variant">数据集</div>
           <div class="case-title">${escapeHtml(item.case_id)} | ${escapeHtml(item.scenario)}</div>
         </div>
       </div>
@@ -183,7 +183,7 @@ function renderVariantDetail(item, variant) {
     return `
       <section class="variant-card detail-card">
         <h4>${variant.toUpperCase()}</h4>
-        <div class="judge-text">No result for this variant.</div>
+        <div class="judge-text">该版本暂无结果。</div>
       </section>
     `;
   }
@@ -195,11 +195,11 @@ function renderVariantDetail(item, variant) {
         <div>${entry.created_at ? new Date(entry.created_at).toLocaleString() : ""}</div>
       </div>
       ${[
-        ["Participants", result.participants],
-        ["Key Points", result.key_points],
-        ["Actions", result.action_items],
-        ["Decisions", result.decisions],
-        ["Overall", result.overall],
+        ["参会人", result.participants],
+        ["要点", result.key_points],
+        ["待办", result.action_items],
+        ["决策", result.decisions],
+        ["总体", result.overall],
       ].map(([label, value]) => `
         <div class="metric-row">
           <span>${label}</span>
@@ -207,9 +207,9 @@ function renderVariantDetail(item, variant) {
         </div>
       `).join("")}
       <div class="judge-text">
-        <strong>Summary:</strong> ${escapeHtml(result.summary)}<br/>
-        <strong>Strengths:</strong> ${escapeHtml((result.strengths || []).join(", ") || "-")}<br/>
-        <strong>Issues:</strong> ${escapeHtml((result.issues || []).join(", ") || "-")}
+        <strong>摘要：</strong> ${escapeHtml(result.summary)}<br/>
+        <strong>优点：</strong> ${escapeHtml((result.strengths || []).join(", ") || "-")}<br/>
+        <strong>问题：</strong> ${escapeHtml((result.issues || []).join(", ") || "-")}
       </div>
     </section>
   `;
@@ -218,7 +218,7 @@ function renderVariantDetail(item, variant) {
 function renderMeetingArchive(meetings) {
   if (!meetings.length) {
     meetingList.className = "run-list empty";
-    meetingList.textContent = "No workspace runs yet.";
+    meetingList.textContent = "暂无工作台记录。";
     return;
   }
   meetingList.className = "run-list";
@@ -226,7 +226,7 @@ function renderMeetingArchive(meetings) {
     <button class="history-item ${activeMeetingId === meeting.meeting_id ? "selected-card" : ""}" data-meeting-id="${meeting.meeting_id}">
       <div class="run-id">${escapeHtml(meeting.title)}</div>
       <div class="meta">
-        ${escapeHtml(meeting.scenario || "ad_hoc")} | ${meeting.status} | ${new Date(meeting.created_at).toLocaleString()}
+        ${escapeHtml(meeting.scenario || "ad_hoc")} ｜ ${meeting.status} ｜ ${new Date(meeting.created_at).toLocaleString()}
       </div>
     </button>
   `).join("");
@@ -238,29 +238,29 @@ function renderMeetingArchive(meetings) {
 function renderComparison(comparison) {
   if (!comparison) {
     comparisonBoard.className = "summary-board empty";
-    comparisonBoard.textContent = "Run a meeting to see why V2 is safer than V1.";
+    comparisonBoard.textContent = "运行一次会议，看看 V2 为何比 V1 更稳。";
     return;
   }
   comparisonBoard.className = "summary-board";
   comparisonBoard.innerHTML = `
     <div class="variant-grid">
       <section class="variant-card">
-        <h4>V1 Baseline</h4>
-        <div class="metric-row"><span>Format Valid</span><strong>${comparison.v1_format_valid ? "Yes" : "No"}</strong></div>
+        <h4>V1 基线</h4>
+        <div class="metric-row"><span>格式合法</span><strong>${comparison.v1_format_valid ? "是" : "否"}</strong></div>
         ${Object.entries(comparison.v1_counts || {}).map(([key, value]) => `
           <div class="metric-row"><span>${key.replaceAll("_", " ")}</span><strong>${value}</strong></div>
         `).join("")}
       </section>
       <section class="variant-card">
-        <h4>V2 Workflow</h4>
-        <div class="metric-row"><span>Format Valid</span><strong>${comparison.v2_format_valid ? "Yes" : "No"}</strong></div>
+        <h4>V2 工作流</h4>
+        <div class="metric-row"><span>格式合法</span><strong>${comparison.v2_format_valid ? "是" : "否"}</strong></div>
         ${Object.entries(comparison.v2_counts || {}).map(([key, value]) => `
           <div class="metric-row"><span>${key.replaceAll("_", " ")}</span><strong>${value}</strong></div>
         `).join("")}
       </section>
     </div>
     <div class="judge-text">
-      <strong>Why V2 wins:</strong><br/>
+      <strong>V2 为何更优：</strong><br/>
       ${(comparison.highlights || []).map((line) => `• ${escapeHtml(line)}`).join("<br/>")}
     </div>
   `;
@@ -269,7 +269,7 @@ function renderComparison(comparison) {
 function renderMinutes(minutes) {
   if (!minutes) {
     minutesBoard.className = "case-table empty";
-    minutesBoard.textContent = "Your human-readable minutes will appear here.";
+    minutesBoard.textContent = "结构化会议纪要会显示在这里。";
     return;
   }
   minutesBoard.className = "case-table";
@@ -281,28 +281,28 @@ function renderMinutes(minutes) {
           <div class="case-title">${escapeHtml(minutes.title)}</div>
         </div>
       </div>
-      <div class="judge-text"><strong>Summary:</strong> ${escapeHtml(minutes.summary_line)}</div>
+      <div class="judge-text"><strong>摘要：</strong> ${escapeHtml(minutes.summary_line)}</div>
       <div class="minutes-grid">
-        ${renderMinutesSection("Participants", (minutes.participants || []).map((item) => `
-          <div class="evidence-item"><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.role || "role not set")}</span></div>
-        `).join(""), "No participants extracted.")}
-        ${renderMinutesSection("Key Points", (minutes.key_points || []).map((item) => `
+        ${renderMinutesSection("参会人", (minutes.participants || []).map((item) => `
+          <div class="evidence-item"><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.role || "未标注角色")}</span></div>
+        `).join(""), "未抽取到参会人。")}
+        ${renderMinutesSection("要点", (minutes.key_points || []).map((item) => `
           <div class="evidence-item"><strong>${escapeHtml(item.topic)}</strong><span>${escapeHtml(item.summary || "")}</span></div>
-        `).join(""), "No key points extracted.")}
-        ${renderMinutesSection("Action Items", (minutes.action_items || []).map((item) => `
+        `).join(""), "未抽取到要点。")}
+        ${renderMinutesSection("待办", (minutes.action_items || []).map((item) => `
           <div class="evidence-item">
             <strong>${escapeHtml(item.task)}</strong>
-            <span>Owner: ${escapeHtml(item.owner || "unassigned")} | Due: ${escapeHtml(item.due || "not set")}</span>
-            <blockquote>${escapeHtml(item.evidence || "No evidence attached")}</blockquote>
+            <span>负责人：${escapeHtml(item.owner || "未指派")} ｜ 截止：${escapeHtml(item.due || "未设置")}</span>
+            <blockquote>${escapeHtml(item.evidence || "无证据")}</blockquote>
           </div>
-        `).join(""), "No action items extracted.")}
-        ${renderMinutesSection("Decisions", (minutes.decisions || []).map((item) => `
+        `).join(""), "未抽取到待办。")}
+        ${renderMinutesSection("决策", (minutes.decisions || []).map((item) => `
           <div class="evidence-item">
             <strong>${escapeHtml(item.decision)}</strong>
-            <span>Supersedes: ${escapeHtml(item.supersedes || "none")}</span>
-            <blockquote>${escapeHtml(item.evidence || "No evidence attached")}</blockquote>
+            <span>取代：${escapeHtml(item.supersedes || "无")}</span>
+            <blockquote>${escapeHtml(item.evidence || "无证据")}</blockquote>
           </div>
-        `).join(""), "No decisions extracted.")}
+        `).join(""), "未抽取到决策。")}
       </div>
     </article>
   `;
@@ -320,7 +320,7 @@ function renderMinutesSection(title, body, emptyText) {
 function renderTasks(tasks) {
   if (!tasks?.length) {
     tasksBoard.className = "case-table empty";
-    tasksBoard.textContent = "Derived mock tasks will appear here.";
+    tasksBoard.textContent = "派生的待办任务会显示在这里。";
     return;
   }
   tasksBoard.className = "case-table";
@@ -328,15 +328,15 @@ function renderTasks(tasks) {
     <article class="case-item">
       <div class="case-top">
         <div>
-          <div class="case-variant">mock task</div>
+          <div class="case-variant">派生任务</div>
           <div class="case-title">${escapeHtml(task.title)}</div>
         </div>
         <div>${escapeHtml(task.status)}</div>
       </div>
       <div class="judge-text">
-        <strong>Assignee:</strong> ${escapeHtml(task.assignee || "unassigned")}<br/>
-        <strong>Due:</strong> ${escapeHtml(task.due_date || "not set")}<br/>
-        <strong>Evidence:</strong> ${escapeHtml(task.source_evidence || "-")}
+        <strong>负责人：</strong> ${escapeHtml(task.assignee || "未指派")}<br/>
+        <strong>截止：</strong> ${escapeHtml(task.due_date || "未设置")}<br/>
+        <strong>证据：</strong> ${escapeHtml(task.source_evidence || "-")}
       </div>
     </article>
   `).join("");
@@ -345,7 +345,7 @@ function renderTasks(tasks) {
 function renderAlerts(alerts) {
   if (!alerts?.length) {
     alertsBoard.className = "case-table empty";
-    alertsBoard.textContent = "Cross-meeting hints will appear here.";
+    alertsBoard.textContent = "跨会议提示会显示在这里。";
     return;
   }
   alertsBoard.className = "case-table";
@@ -359,9 +359,9 @@ function renderAlerts(alerts) {
       </div>
       <div class="judge-text">
         ${escapeHtml(alert.message || "")}<br/>
-        ${alert.task ? `<strong>Task:</strong> ${escapeHtml(alert.task)}<br/>` : ""}
-        ${alert.related_meeting_id ? `<strong>Related meeting:</strong> ${escapeHtml(alert.related_meeting_id)}<br/>` : ""}
-        ${alert.supersedes ? `<strong>Supersedes:</strong> ${escapeHtml(alert.supersedes)}` : ""}
+        ${alert.task ? `<strong>任务：</strong> ${escapeHtml(alert.task)}<br/>` : ""}
+        ${alert.related_meeting_id ? `<strong>关联会议：</strong> ${escapeHtml(alert.related_meeting_id)}<br/>` : ""}
+        ${alert.supersedes ? `<strong>取代：</strong> ${escapeHtml(alert.supersedes)}` : ""}
       </div>
     </article>
   `).join("");
@@ -370,7 +370,7 @@ function renderAlerts(alerts) {
 async function loadScenarios() {
   const data = await fetchJson("/api/scenarios");
   scenarioSelect.innerHTML = `
-    <option value="">all scenarios</option>
+    <option value="">全部场景</option>
     ${data.scenarios.map((name) => `<option value="${name}">${name}</option>`).join("")}
   `;
 }
@@ -379,7 +379,7 @@ async function loadDemoCases() {
   const data = await fetchJson("/api/demo/cases");
   demoCases = data.cases || [];
   demoCaseSelect.innerHTML = `
-    <option value="">choose a mock case</option>
+    <option value="">选择一个样例</option>
     ${demoCases.map((item) => `<option value="${item.case_id}">${item.case_id} | ${item.scenario}</option>`).join("")}
   `;
 }
@@ -399,15 +399,15 @@ async function loadRun(runId) {
   activeRunId = data.run.run_id;
   renderSummary(data.summary);
   renderCases(data);
-  runMeta.textContent = `Viewing run ${data.run.run_id} | scenario=${data.run.scenario || "all"} | v2=${data.run.v2_impl}`;
+  runMeta.textContent = `查看运行 ${data.run.run_id} ｜ 场景=${data.run.scenario || "全部"} ｜ v2=${data.run.v2_impl}`;
   updateProgress(data.run);
   if (data.run.status === "completed") {
-    setStatus(statusPill, "done", "Complete");
+    setStatus(statusPill, "done", "完成");
   } else if (data.run.status === "failed") {
-    setStatus(statusPill, "error", "Failed");
+    setStatus(statusPill, "error", "失败");
     runMeta.textContent = data.run.error_message || runMeta.textContent;
   } else {
-    setStatus(statusPill, "running", "Running");
+    setStatus(statusPill, "running", "运行中");
   }
   await loadRuns();
   return data;
@@ -420,15 +420,15 @@ async function loadMeeting(meetingId) {
   renderMinutes(data.minutes);
   renderTasks(data.derived_tasks);
   renderAlerts(data.alerts);
-  demoMeta.textContent = `Viewing ${data.meeting.title} | ${data.meeting.scenario || "ad_hoc"} | ${data.meeting.meeting_id}`;
+  demoMeta.textContent = `查看 ${data.meeting.title} ｜ ${data.meeting.scenario || "ad_hoc"} ｜ ${data.meeting.meeting_id}`;
   updateDemoProgress(data.meeting);
   if (data.meeting.status === "completed") {
-    setStatus(demoStatusPill, "done", "Complete");
+    setStatus(demoStatusPill, "done", "完成");
   } else if (data.meeting.status === "failed") {
-    setStatus(demoStatusPill, "error", "Failed");
+    setStatus(demoStatusPill, "error", "失败");
     demoMeta.textContent = data.meeting.error_message || demoMeta.textContent;
   } else {
-    setStatus(demoStatusPill, "running", "Running");
+    setStatus(demoStatusPill, "running", "运行中");
   }
   await loadMeetings();
   return data;
@@ -440,8 +440,8 @@ async function deleteRun(runId) {
     activeRunId = null;
     renderSummary({});
     renderCases({});
-    setStatus(statusPill, "idle", "Idle");
-    runMeta.textContent = "Run deleted.";
+    setStatus(statusPill, "idle", "空闲");
+    runMeta.textContent = "运行已删除。";
     updateProgress(null);
   }
   await loadRuns();
@@ -471,7 +471,7 @@ async function pollRun(runId) {
     }
     pollTimer = setTimeout(() => pollRun(runId), 3000);
   } catch (error) {
-    setStatus(statusPill, "error", "Error");
+    setStatus(statusPill, "error", "出错");
     runMeta.textContent = error.message;
     runButton.disabled = false;
     stopPolling();
@@ -488,7 +488,7 @@ async function pollMeeting(meetingId) {
     }
     demoPollTimer = setTimeout(() => pollMeeting(meetingId), 3000);
   } catch (error) {
-    setStatus(demoStatusPill, "error", "Error");
+    setStatus(demoStatusPill, "error", "出错");
     demoMeta.textContent = error.message;
     demoRunButton.disabled = false;
     stopDemoPolling();
@@ -508,10 +508,10 @@ runButton.addEventListener("click", async () => {
   try {
     runButton.disabled = true;
     stopPolling();
-    setStatus(statusPill, "running", "Running");
-    runMeta.textContent = "Lab is running with real LLM calls. This can take a while.";
+    setStatus(statusPill, "running", "运行中");
+    runMeta.textContent = "正在用真实 LLM 运行基准，可能需要一会儿。";
     progressBar.style.width = "0%";
-    progressText.textContent = "queued | 0/0 | - | -";
+    progressText.textContent = "排队中 | 0/0 | - | -";
     const result = await fetchJson("/api/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -519,10 +519,10 @@ runButton.addEventListener("click", async () => {
         scenario: scenarioSelect.value || null,
       }),
     });
-    runMeta.textContent = `Run started | run_id=${result.run_id}`;
+    runMeta.textContent = `已启动 ｜ run_id=${result.run_id}`;
     await pollRun(result.run_id);
   } catch (error) {
-    setStatus(statusPill, "error", "Error");
+    setStatus(statusPill, "error", "出错");
     runMeta.textContent = error.message;
     runButton.disabled = false;
   }
@@ -532,10 +532,10 @@ demoRunButton.addEventListener("click", async () => {
   try {
     demoRunButton.disabled = true;
     stopDemoPolling();
-    setStatus(demoStatusPill, "running", "Running");
-    demoMeta.textContent = "Running V1 and V2 on the workspace transcript.";
+    setStatus(demoStatusPill, "running", "运行中");
+    demoMeta.textContent = "正在对该转写运行 V1 与 V2。";
     demoProgressBar.style.width = "0%";
-    demoProgressText.textContent = "queued | preparing input";
+    demoProgressText.textContent = "排队中 ｜ 准备输入";
     const transcript = demoTranscriptInput.value.trim();
     const caseId = transcript ? null : (demoCaseSelect.value || null);
     const selected = demoCases.find((item) => item.case_id === demoCaseSelect.value);
@@ -549,10 +549,10 @@ demoRunButton.addEventListener("click", async () => {
         scenario: selected?.scenario || null,
       }),
     });
-    demoMeta.textContent = `Workspace run started | meeting_id=${result.meeting_id}`;
+    demoMeta.textContent = `已启动 ｜ meeting_id=${result.meeting_id}`;
     await pollMeeting(result.meeting_id);
   } catch (error) {
-    setStatus(demoStatusPill, "error", "Error");
+    setStatus(demoStatusPill, "error", "出错");
     demoMeta.textContent = error.message;
     demoRunButton.disabled = false;
   }
@@ -560,8 +560,8 @@ demoRunButton.addEventListener("click", async () => {
 
 async function boot() {
   activateTab("workbench");
-  setStatus(statusPill, "idle", "Idle");
-  setStatus(demoStatusPill, "idle", "Idle");
+  setStatus(statusPill, "idle", "空闲");
+  setStatus(demoStatusPill, "idle", "空闲");
   updateProgress(null);
   updateDemoProgress(null);
   if (plainToggle) {
@@ -580,8 +580,8 @@ async function boot() {
 }
 
 boot().catch((error) => {
-  setStatus(statusPill, "error", "Error");
-  setStatus(demoStatusPill, "error", "Error");
+  setStatus(statusPill, "error", "出错");
+  setStatus(demoStatusPill, "error", "出错");
   runMeta.textContent = error.message;
   demoMeta.textContent = error.message;
 });

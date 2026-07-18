@@ -1,8 +1,0 @@
-{
-  "run_id": "843879ba-643a-428d-8826-0d3f399634ac",
-  "scenario": "decision_reversal",
-  "v2_impl": "langgraph",
-  "summary": {},
-  "prediction_backend": "real (openai-compatible)",
-  "judge_backend": "real (openai-compatible)"
-}

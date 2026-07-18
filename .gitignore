@@ -1,0 +1,56 @@
+# Secrets and local configuration
+.env
+*.env
+!.env.example
+Core/.env
+Lab/.env
+
+# Python caches and build output
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local databases and generated benchmark artifacts
+*.sqlite
+*.sqlite3
+*.db
+Lab/minsight_lab.sqlite
+Lab/results/
+
+# Logs and runtime output
+*.log
+logs/
+tmp/
+temp/
+
+# Node/frontend dependency folders, if added later
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local automation/tool state
+.codex/
+.claude/

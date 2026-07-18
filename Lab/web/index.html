@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Minsight Workspace</title>
+    <title>Minsight 工作台</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,12 +18,12 @@
           <span class="brand-mark">M</span>
           <div class="brand-copy">
             <strong>Minsight</strong>
-            <span>Meeting intelligence workspace</span>
+            <span>会议智能工作台</span>
           </div>
         </div>
         <div class="topbar-badges">
-          <span class="badge badge-dot">Real LLM</span>
-          <span class="badge">V1 vs V2</span>
+          <span class="badge badge-dot">真实 LLM</span>
+          <span class="badge">V1 对比 V2</span>
         </div>
       </div>
     </header>
@@ -31,42 +31,42 @@
     <main class="shell">
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Meeting → Structured assets</p>
-          <h1>Turn messy meetings into structured assets, tasks &amp; evidence.</h1>
+          <p class="eyebrow">会议 → 结构化资产</p>
+          <h1>把杂乱的会议，变成结构化资产、待办与证据。</h1>
           <p class="lede">
-            Run the V2 meeting workflow on a mock case or a pasted transcript, compare it against
-            the V1 baseline, and watch minutes become tracked, evidence-linked actions.
+            对样例会议或粘贴的转写文本运行 V2 会议工作流，与 V1 基线对比，
+            看会议纪要如何变成可追踪、可回链证据的待办。
           </p>
           <div class="hero-chips">
-            <span class="chip"><span class="chip-dot"></span>Evidence-linked minutes</span>
-            <span class="chip"><span class="chip-dot"></span>Derived action closure</span>
-            <span class="chip"><span class="chip-dot"></span>Strong-model judge</span>
+            <span class="chip"><span class="chip-dot"></span>证据可回链的纪要</span>
+            <span class="chip"><span class="chip-dot"></span>待办自动闭环</span>
+            <span class="chip"><span class="chip-dot"></span>强模型评审</span>
           </div>
         </div>
         <aside class="hero-panel">
           <div class="hero-panel-row">
-            <span>Primary view</span>
-            <strong>Workbench</strong>
+            <span>主视图</span>
+            <strong>工作台</strong>
           </div>
           <div class="hero-panel-divider"></div>
           <div class="hero-panel-row">
-            <span>Validation</span>
-            <strong>Benchmark Lab</strong>
+            <span>验证</span>
+            <strong>基准实验室</strong>
           </div>
           <div class="hero-panel-note">
-            V2 adds normalization, contracts, and self-repair on top of the single-call V1.
+            V2 在单次调用的 V1 之上，加了说话人归一、结构化契约与自修复。
           </div>
         </aside>
       </section>
 
       <nav class="tabbar" role="tablist">
         <button class="tab active" data-tab="workbench" role="tab">
-          <span class="tab-label">Workbench</span>
-          <span class="tab-sub">Run a meeting</span>
+          <span class="tab-label">工作台</span>
+          <span class="tab-sub">跑一次会议</span>
         </button>
         <button class="tab" data-tab="benchmark" role="tab">
-          <span class="tab-label">Benchmark</span>
-          <span class="tab-sub">Score the models</span>
+          <span class="tab-label">基准评测</span>
+          <span class="tab-sub">给模型打分</span>
         </button>
       </nav>
 
@@ -74,31 +74,31 @@
         <section class="control-panel">
           <div class="panel-head">
             <div>
-              <p class="panel-kicker">Business demo</p>
-              <h2>Run a structured meeting</h2>
+              <p class="panel-kicker">业务演示</p>
+              <h2>运行一次结构化会议</h2>
             </div>
-            <div id="demoStatusPill" class="status-pill idle">Idle</div>
+            <div id="demoStatusPill" class="status-pill idle">空闲</div>
           </div>
 
           <div class="demo-controls">
             <label class="field">
-              <span>Mock case</span>
+              <span>样例会议</span>
               <select id="demoCaseSelect"></select>
             </label>
 
-            <button id="loadMockButton" class="secondary-button">Load transcript</button>
+            <button id="loadMockButton" class="secondary-button">载入转写</button>
 
             <label class="field field-wide">
-              <span>Meeting title</span>
-              <input id="demoTitleInput" class="text-input" type="text" placeholder="Decision review / weekly sync / ad hoc meeting" />
+              <span>会议标题</span>
+              <input id="demoTitleInput" class="text-input" type="text" placeholder="决策评审 / 周会 / 临时会议" />
             </label>
 
             <label class="field field-full">
-              <span>Transcript</span>
-              <textarea id="demoTranscriptInput" class="transcript-input" placeholder="Paste a meeting transcript here, or load a mock case."></textarea>
+              <span>转写文本</span>
+              <textarea id="demoTranscriptInput" class="transcript-input" placeholder="在此粘贴会议转写文本，或载入一个样例会议。"></textarea>
             </label>
 
-            <button id="demoRunButton" class="run-button">Run workspace demo</button>
+            <button id="demoRunButton" class="run-button">运行工作台演示</button>
           </div>
 
           <div id="demoMeta" class="run-meta"></div>
@@ -106,51 +106,51 @@
             <div class="progress-track">
               <div id="demoProgressBar" class="progress-bar"></div>
             </div>
-            <div id="demoProgressText" class="progress-text">Waiting to start</div>
+            <div id="demoProgressText" class="progress-text">等待开始</div>
           </div>
         </section>
 
         <section class="results-grid">
           <article class="score-card">
             <div class="card-head">
-              <p>Recent meetings</p>
-              <h3>Workspace archive</h3>
+              <p>最近会议</p>
+              <h3>工作台归档</h3>
             </div>
-            <div id="meetingList" class="run-list empty">No workspace runs yet.</div>
+            <div id="meetingList" class="run-list empty">暂无工作台记录。</div>
           </article>
 
           <article class="history-card">
             <div class="card-head">
-              <p>Model delta</p>
-              <h3>V1 vs V2</h3>
+              <p>模型差异</p>
+              <h3>V1 对比 V2</h3>
             </div>
-            <div id="comparisonBoard" class="summary-board empty">Run a meeting to see why V2 is safer than V1.</div>
+            <div id="comparisonBoard" class="summary-board empty">运行一次会议，看看 V2 为何比 V1 更稳。</div>
           </article>
         </section>
 
         <section class="detail-card">
           <div class="card-head">
-            <p>Readable minutes</p>
-            <h3>Structured meeting view</h3>
+            <p>可读纪要</p>
+            <h3>结构化会议视图</h3>
           </div>
-          <div id="minutesBoard" class="case-table empty">Your human-readable minutes will appear here.</div>
+          <div id="minutesBoard" class="case-table empty">结构化会议纪要会显示在这里。</div>
         </section>
 
         <section class="results-grid">
           <article class="score-card">
             <div class="card-head">
-              <p>Derived tasks</p>
-              <h3>Action closure</h3>
+              <p>派生待办</p>
+              <h3>待办闭环</h3>
             </div>
-            <div id="tasksBoard" class="case-table empty">Derived mock tasks will appear here.</div>
+            <div id="tasksBoard" class="case-table empty">派生的待办任务会显示在这里。</div>
           </article>
 
           <article class="history-card">
             <div class="card-head">
-              <p>Cross-meeting signals</p>
-              <h3>Alerts</h3>
+              <p>跨会议信号</p>
+              <h3>提醒</h3>
             </div>
-            <div id="alertsBoard" class="case-table empty">Cross-meeting hints will appear here.</div>
+            <div id="alertsBoard" class="case-table empty">跨会议提示会显示在这里。</div>
           </article>
         </section>
       </section>
@@ -159,19 +159,19 @@
         <section class="control-panel">
           <div class="panel-head">
             <div>
-              <p class="panel-kicker">Run control</p>
-              <h2>Start a new Lab run</h2>
+              <p class="panel-kicker">运行控制</p>
+              <h2>启动一次实验室运行</h2>
             </div>
-            <div id="statusPill" class="status-pill idle">Idle</div>
+            <div id="statusPill" class="status-pill idle">空闲</div>
           </div>
 
           <div class="controls">
             <label class="field">
-              <span>Scenario</span>
+              <span>场景</span>
               <select id="scenarioSelect"></select>
             </label>
 
-            <button id="runButton" class="run-button">Run Lab</button>
+            <button id="runButton" class="run-button">运行实验室</button>
           </div>
 
           <div id="runMeta" class="run-meta"></div>
@@ -179,34 +179,34 @@
             <div class="progress-track">
               <div id="progressBar" class="progress-bar"></div>
             </div>
-            <div id="progressText" class="progress-text">Waiting to start</div>
+            <div id="progressText" class="progress-text">等待开始</div>
           </div>
         </section>
 
         <section class="results-grid">
           <article class="score-card">
             <div class="card-head">
-              <p>Latest summary</p>
-              <h3>Variant scores</h3>
+              <p>最新汇总</p>
+              <h3>版本得分</h3>
             </div>
-            <div id="summaryBoard" class="summary-board empty">No benchmark results yet.</div>
+            <div id="summaryBoard" class="summary-board empty">暂无基准结果。</div>
           </article>
 
           <article class="history-card">
             <div class="card-head">
-              <p>Run archive</p>
-              <h3>Previous runs</h3>
+              <p>运行归档</p>
+              <h3>历史运行</h3>
             </div>
-            <div id="runList" class="run-list empty">No previous runs.</div>
+            <div id="runList" class="run-list empty">暂无历史运行。</div>
           </article>
         </section>
 
         <section class="detail-card">
           <div class="card-head">
-            <p>Case review</p>
-            <h3>Per-case judge output</h3>
+            <p>逐条评审</p>
+            <h3>每条用例的评审输出</h3>
           </div>
-          <div id="caseTable" class="case-table empty">Run a benchmark to see per-case judge results here.</div>
+          <div id="caseTable" class="case-table empty">运行基准后，这里显示逐条评审结果。</div>
         </section>
       </section>
     </main>
