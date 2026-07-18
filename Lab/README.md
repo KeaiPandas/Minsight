@@ -55,7 +55,9 @@ Each case has a human-authored `gold` answer for:
 - `action_items`
 - `decisions`
 
-The current six scenarios intentionally cover different failure modes:
+Gold annotations follow [annotation_rubric.md](/D:/Interview/Minsight/docs/annotation_rubric.md), including topic-level decision boundaries and verbatim evidence requirements.
+
+The current scenarios intentionally cover different failure modes:
 
 | Scenario | Purpose |
 |---|---|
@@ -65,6 +67,7 @@ The current six scenarios intentionally cover different failure modes:
 | `mixed_language` | Chinese-English mixed terms. |
 | `multi_topic` | Topic switching and parking-lot filtering. |
 | `nickname_reference` | Nickname/reference resolution. |
+| `real_world_kickoff` | Long real-world prioritization and scope-cut meeting. |
 
 Scores shown in the UI come from a hybrid evaluation path:
 

@@ -12,10 +12,23 @@ from shared.dataio import load_cases
 
 
 class ScenarioFixtureQualityTests(unittest.TestCase):
+    def test_annotation_rubric_documents_core_gold_boundaries(self):
+        rubric = (Path(__file__).resolve().parents[2] / "docs" / "annotation_rubric.md").read_text(encoding="utf-8")
+
+        for phrase in (
+            "A decision is a topic-level conclusion",
+            "A key point is a major discussion point",
+            "An action item must have a concrete deliverable",
+            "Evidence must be a verbatim transcript substring",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, rubric)
+
     def test_benchmark_cases_are_complex_enough_for_agent_iteration(self):
         cases = load_cases()
 
-        self.assertGreaterEqual(len(cases), 6)
+        self.assertGreaterEqual(len(cases), 7)
+        self.assertIn("real_01", {case["id"] for case in cases})
         for case in cases:
             with self.subTest(case_id=case["id"]):
                 tags = set(case.get("complexity_tags", []))
@@ -34,6 +47,32 @@ class ScenarioFixtureQualityTests(unittest.TestCase):
                 self.assertNotIn("alias_map", case)
                 self.assertRegex(case.get("meeting_info", {}).get("date", ""), r"^\d{4}-\d{2}-\d{2}$")
                 self.assertGreaterEqual(len(case.get("meeting_info", {}).get("attendees", [])), 3)
+
+    def test_gold_action_and_decision_evidence_is_verbatim_transcript_text(self):
+        for case in load_cases():
+            transcript = case["transcript"]
+            for section in ("action_items", "decisions"):
+                for item in case["gold"].get(section, []):
+                    with self.subTest(case_id=case["id"], section=section, evidence=item.get("evidence")):
+                        evidence = item.get("evidence", "")
+
+                        self.assertTrue(evidence)
+                        self.assertIn(evidence, transcript)
+
+    def test_decision_rubric_keeps_topic_level_exclusions_but_not_inline_clarifications(self):
+        cases = {case["id"]: case for case in load_cases()}
+        nick_decisions = " ".join(
+            item["decision"] for item in cases["nick_01"]["gold"].get("decisions", [])
+        )
+        real_decisions = " ".join(
+            item["decision"] for item in cases["real_01"]["gold"].get("decisions", [])
+        )
+
+        self.assertNotIn("录屏", nick_decisions)
+        self.assertNotIn("发票", nick_decisions)
+        self.assertNotIn("问卷", nick_decisions)
+        self.assertIn("暂缓", real_decisions)
+        self.assertIn("优先级", real_decisions)
 
 
 if __name__ == "__main__":

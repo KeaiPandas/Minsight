@@ -51,6 +51,8 @@ Each file contains one complex meeting case with:
 - `complexity_tags`
 - `gold`
 
+Gold annotations follow [annotation_rubric.md](/D:/Interview/Minsight/docs/annotation_rubric.md).
+
 Current scenarios:
 
 | Scenario | Purpose |
@@ -61,6 +63,7 @@ Current scenarios:
 | `mixed_language` | Chinese-English mixed product discussion. |
 | `multi_topic` | Mixed agenda items, parking-lot topics, and non-decisions. |
 | `nickname_reference` | Nickname resolution and internal-owner assignment. |
+| `real_world_kickoff` | Long real-world kickoff discussion with prioritization and scope cuts. |
 
 Lab uses these fixtures to run Minsight Agent regression comparisons across runs.
 The workbench can also load them as demo cases.
