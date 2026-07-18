@@ -21,6 +21,7 @@ from shared.meeting_info import get_meeting_date, get_meeting_info
 from v2.graph import extract_v2_graph
 
 from judge import judge_prediction
+from integrations.feishu_tasks import build_task_sink
 from metrics import combine_scores, score_objective_dimensions
 from store import BenchmarkStore
 
@@ -41,6 +42,7 @@ class BenchmarkRuntime:
         v2_extractor_factory=None,
         judge_fn=None,
         llm_factory=None,
+        task_sink_factory=None,
     ):
         self.db_path = db_path or os.path.join(ROOT, "minsight_lab.sqlite")
         self.results_dir = results_dir or os.path.join(ROOT, "results")
@@ -49,6 +51,7 @@ class BenchmarkRuntime:
         self.v2_extractor_factory = v2_extractor_factory or self._default_v2_extractor_factory
         self.judge_fn = judge_fn or judge_prediction
         self.llm_factory = llm_factory or LLMClient
+        self.task_sink_factory = task_sink_factory or build_task_sink
 
     def store(self):
         store = BenchmarkStore(self.db_path)
@@ -153,6 +156,32 @@ class BenchmarkRuntime:
             "decisions": decisions,
             "derived_tasks": tasks,
             "alerts": alerts,
+        }
+
+    def sync_demo_tasks_to_feishu(self, meeting_id, mode=None):
+        store = self.store()
+        meeting = store.get_meeting(meeting_id)
+        if not meeting:
+            raise ValueError(f"meeting not found: {meeting_id}")
+        tasks = store.list_derived_tasks(meeting_id)
+        sink = self.task_sink_factory(mode)
+        results = []
+        for task in tasks:
+            result = sink.push_task(task)
+            store.update_derived_task_sync(
+                task_id=task["id"],
+                provider=result.get("provider", "feishu"),
+                sync_status=result.get("status", "failed"),
+                external_id=result.get("external_id"),
+                external_url=result.get("external_url"),
+                sync_error=result.get("error"),
+                sync_payload=result.get("payload"),
+            )
+            results.append({"task_id": task["id"], **result})
+        return {
+            "meeting_id": meeting_id,
+            "mode": getattr(sink, "mode", mode or "dry_run"),
+            "tasks": results,
         }
 
     def get_v2_extractor(self, plain=False):

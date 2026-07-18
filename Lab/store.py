@@ -111,6 +111,7 @@ class BenchmarkStore:
             )
             self._ensure_run_columns(conn)
             self._ensure_prediction_columns(conn)
+            self._ensure_derived_task_columns(conn)
 
     def _ensure_run_columns(self, conn):
         cols = {row[1] for row in conn.execute("PRAGMA table_info(benchmark_runs)").fetchall()}
@@ -132,6 +133,21 @@ class BenchmarkStore:
         cols = {row[1] for row in conn.execute("PRAGMA table_info(predictions)").fetchall()}
         if "context_json" not in cols:
             conn.execute("ALTER TABLE predictions ADD COLUMN context_json TEXT")
+
+    def _ensure_derived_task_columns(self, conn):
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(derived_tasks)").fetchall()}
+        additions = {
+            "external_provider": "TEXT",
+            "external_id": "TEXT",
+            "external_url": "TEXT",
+            "sync_status": "TEXT NOT NULL DEFAULT 'pending'",
+            "sync_error": "TEXT",
+            "sync_payload_json": "TEXT",
+            "synced_at": "TEXT",
+        }
+        for name, ddl in additions.items():
+            if name not in cols:
+                conn.execute(f"ALTER TABLE derived_tasks ADD COLUMN {name} {ddl}")
 
     def create_run(self, run_id, scenario, v2_impl):
         with closing(self._connect()) as conn, conn:
@@ -492,14 +508,52 @@ class BenchmarkStore:
         with closing(self._connect()) as conn:
             rows = conn.execute(
                 """
-                SELECT id, meeting_id, action_id, title, assignee, due_date, source_evidence, status, created_at
+                SELECT id, meeting_id, action_id, title, assignee, due_date,
+                       source_evidence, status, created_at, external_provider,
+                       external_id, external_url, sync_status, sync_error,
+                       sync_payload_json, synced_at
                 FROM derived_tasks
                 WHERE meeting_id = ?
                 ORDER BY id
                 """,
                 (meeting_id,),
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [self._decode_derived_task_row(row) for row in rows]
+
+    def update_derived_task_sync(
+        self,
+        task_id,
+        provider,
+        sync_status,
+        external_id=None,
+        external_url=None,
+        sync_error=None,
+        sync_payload=None,
+    ):
+        with closing(self._connect()) as conn, conn:
+            conn.execute(
+                """
+                UPDATE derived_tasks
+                SET external_provider = ?,
+                    external_id = ?,
+                    external_url = ?,
+                    sync_status = ?,
+                    sync_error = ?,
+                    sync_payload_json = ?,
+                    synced_at = ?
+                WHERE id = ?
+                """,
+                (
+                    provider,
+                    external_id,
+                    external_url,
+                    sync_status,
+                    sync_error,
+                    json.dumps(sync_payload or {}, ensure_ascii=False),
+                    _now(),
+                    task_id,
+                ),
+            )
 
     def list_other_actions(self, meeting_id, variant="v2"):
         with closing(self._connect()) as conn:
@@ -523,6 +577,15 @@ class BenchmarkStore:
                 data[key] = json.loads(data[key])
             elif key in data:
                 data[key] = None
+        return data
+
+    def _decode_derived_task_row(self, row):
+        data = dict(row)
+        if data.get("sync_payload_json"):
+            data["sync_payload"] = json.loads(data["sync_payload_json"])
+        else:
+            data["sync_payload"] = None
+        data.pop("sync_payload_json", None)
         return data
 
     @staticmethod

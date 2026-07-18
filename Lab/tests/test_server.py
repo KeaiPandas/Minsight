@@ -16,6 +16,7 @@ if str(LAB_ROOT) not in sys.path:
 
 from server import build_handler
 from runtime import BenchmarkRuntime
+from integrations.feishu_tasks import DryRunTaskSink
 
 
 class ServerApiTests(unittest.TestCase):
@@ -173,6 +174,7 @@ class ServerApiTests(unittest.TestCase):
                 list_scenarios_fn=lambda: ["demo"],
                 v2_extractor_factory=lambda plain: ("langgraph", fake_v2),
                 llm_factory=lambda: object(),
+                task_sink_factory=lambda mode=None: DryRunTaskSink(),
             )
 
             handler = build_handler(runtime)
@@ -210,6 +212,16 @@ class ServerApiTests(unittest.TestCase):
                 self.assertIsNotNone(meeting_payload)
                 self.assertEqual(meeting_payload["meeting"]["status"], "completed")
                 self.assertEqual(meeting_payload["derived_tasks"][0]["assignee"], "Alice")
+
+                sync_request = urllib.request.Request(
+                    f"{base_url}/api/demo/meeting/sync-feishu",
+                    data=json.dumps({"meeting_id": payload["meeting_id"]}).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                sync_payload = json.loads(urllib.request.urlopen(sync_request).read().decode("utf-8"))
+                self.assertEqual(sync_payload["mode"], "dry_run")
+                self.assertEqual(sync_payload["tasks"][0]["status"], "dry_run")
             finally:
                 server.shutdown()
                 server.server_close()

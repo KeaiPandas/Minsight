@@ -14,6 +14,7 @@ if str(TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(TEST_ROOT))
 
 from runtime import BenchmarkRuntime
+from integrations.feishu_tasks import DryRunTaskSink
 from helpers import load_fixture
 
 
@@ -166,6 +167,7 @@ class BenchmarkRuntimeTests(unittest.TestCase):
                 db_path=str(db_path),
                 results_dir=str(Path(tmpdir) / "results"),
                 llm_factory=lambda: object(),
+                task_sink_factory=lambda mode=None: DryRunTaskSink(),
             )
             store = runtime.store()
             store.create_run("run-1", "demo", "langgraph")
@@ -218,6 +220,7 @@ class BenchmarkRuntimeTests(unittest.TestCase):
                 db_path=str(db_path),
                 results_dir=str(Path(tmpdir) / "results"),
                 llm_factory=lambda: object(),
+                task_sink_factory=lambda mode=None: DryRunTaskSink(),
             )
             store = runtime.store()
             store.create_run("previous-run", "demo", "langgraph")
@@ -473,6 +476,42 @@ class BenchmarkRuntimeTests(unittest.TestCase):
             self.assertEqual(first["derived_tasks"][0]["assignee"], "Alice")
             self.assertTrue(any(alert["type"] == "decision_reversal" for alert in first["alerts"]))
             self.assertTrue(any(alert["type"] == "possible_duplicate_action" for alert in second["alerts"]))
+
+    def test_sync_demo_tasks_to_feishu_uses_dry_run_by_default(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "lab.sqlite"
+            runtime = BenchmarkRuntime(
+                db_path=str(db_path),
+                results_dir=str(Path(tmpdir) / "results"),
+                llm_factory=lambda: object(),
+                task_sink_factory=lambda mode=None: DryRunTaskSink(),
+            )
+            store = runtime.store()
+            store.create_meeting("meeting-1", "Weekly", "demo", "case-1", "transcript")
+            action_id = store.save_meeting_action(
+                meeting_id="meeting-1",
+                variant="v2",
+                task="Ship review doc",
+                owner="Alice",
+                due="2026-07-20",
+                evidence="Alice: I will ship it.",
+            )
+            store.save_derived_task(
+                meeting_id="meeting-1",
+                action_id=action_id,
+                title="Ship review doc",
+                assignee="Alice",
+                due_date="2026-07-20",
+                source_evidence="Alice: I will ship it.",
+            )
+
+            result = runtime.sync_demo_tasks_to_feishu("meeting-1")
+            task = runtime.get_demo_meeting_details("meeting-1")["derived_tasks"][0]
+
+            self.assertEqual(result["mode"], "dry_run")
+            self.assertEqual(result["tasks"][0]["status"], "dry_run")
+            self.assertEqual(task["sync_status"], "dry_run")
+            self.assertEqual(task["external_provider"], "feishu")
 
 
 if __name__ == "__main__":

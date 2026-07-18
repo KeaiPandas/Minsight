@@ -36,6 +36,7 @@ The workbench demo closes the business loop that the benchmark view does not:
 - human-readable meeting minutes
 - evidence display for action items and decisions
 - `action_items -> derived_tasks` persistence
+- manual `derived_tasks -> Feishu Tasks` sync through dry-run or `lark-cli`
 - cross-meeting duplicate-task hints
 
 SQLite now stores lightweight business assets in addition to benchmark records:
@@ -44,6 +45,12 @@ SQLite now stores lightweight business assets in addition to benchmark records:
 - `meeting_actions`
 - `meeting_decisions`
 - `derived_tasks`
+
+`derived_tasks` also stores Feishu sync state:
+
+- `sync_status`: `pending`, `dry_run`, `synced`, or `failed`
+- `external_provider`, `external_id`, `external_url`
+- `sync_error`, `sync_payload`, `synced_at`
 
 ## Benchmark Basis
 
@@ -127,6 +134,75 @@ Workbench APIs:
 - `GET /api/demo/meetings`
 - `POST /api/demo/run`
 - `GET /api/demo/meeting?id=<meeting_id>`
+- `POST /api/demo/meeting/sync-feishu`
+
+## Feishu Task Sync
+
+Workbench task sync is manual. Runtime loads local settings from `Lab/.env`
+first, then from the repository root `.env`. Shell environment variables still
+take precedence.
+
+Safe preview mode:
+
+```powershell
+$env:MINSIGHT_FEISHU_SYNC_MODE="dry_run"
+```
+
+Or write it into `Lab/.env`:
+
+```env
+MINSIGHT_FEISHU_SYNC_MODE=dry_run
+MINSIGHT_FEISHU_IDENTITY=user
+```
+
+To write through local `lark-cli` after you have configured auth and scopes:
+
+```powershell
+$env:MINSIGHT_FEISHU_SYNC_MODE="lark_cli"
+$env:MINSIGHT_FEISHU_IDENTITY="user"
+```
+
+Equivalent `Lab/.env`:
+
+```env
+MINSIGHT_FEISHU_SYNC_MODE=lark_cli
+MINSIGHT_FEISHU_IDENTITY=user
+```
+
+The adapter calls the safer `lark-cli task +create` shortcut and passes
+`--idempotency-key minsight-derived-task-<id>` so repeated clicks do not create
+duplicate tasks for the same derived task.
+
+On Windows the adapter resolves the `lark-cli.cmd` shim first because Python
+subprocesses cannot always execute the PowerShell shim directly. If the CLI is
+missing, unauthenticated, or exits with an error, the sync API records the task
+as `failed` instead of returning HTTP 500.
+
+Check the active CLI identity before real sync:
+
+```powershell
+lark-cli auth status
+```
+
+If `MINSIGHT_FEISHU_IDENTITY=user`, `auth status` must show an available user
+token. If it says only bot/tenant identity is available, run user authorization:
+
+```powershell
+lark-cli auth login --scope "task:task:write"
+```
+
+Alternatively set `MINSIGHT_FEISHU_IDENTITY=bot` if you want the configured app
+identity to create tasks and the app has the required task scope.
+
+Required Feishu scope for real task creation:
+
+```text
+task:task:write
+```
+
+The first integration keeps assignee names in the task description instead of
+assigning Feishu members directly. Real assignment should wait for reliable
+open_id/user_id resolution.
 
 ## Outputs
 
@@ -153,6 +229,7 @@ The automated coverage now protects:
 - benchmark store persistence
 - benchmark runtime lifecycle
 - workbench meeting asset persistence
+- Feishu task sync dry-run and lark-cli adapter behavior
 - benchmark HTTP flow
 - workbench HTTP flow
 - scenario fixture complexity and gold coverage

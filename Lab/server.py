@@ -68,6 +68,15 @@ def build_handler(runtime):
                         transcript=(payload.get("transcript") or "").strip() or None,
                     )
                     return self._send_json({"meeting_id": meeting_id, "status": "queued"}, status=HTTPStatus.ACCEPTED)
+                if parsed.path == "/api/demo/meeting/sync-feishu":
+                    meeting_id = payload.get("meeting_id")
+                    if not meeting_id:
+                        return self._send_json({"error": "missing meeting id"}, status=HTTPStatus.BAD_REQUEST)
+                    result = runtime.sync_demo_tasks_to_feishu(
+                        meeting_id,
+                        mode=payload.get("mode") or None,
+                    )
+                    return self._send_json(result)
                 return self._send_json({"error": "not found"}, status=HTTPStatus.NOT_FOUND)
             except Exception as exc:
                 return self._send_json({"error": str(exc)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)

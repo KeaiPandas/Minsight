@@ -179,3 +179,21 @@ class BenchmarkStoreTests(unittest.TestCase):
             self.assertEqual(actions[0]["task"], "Ship review doc")
             self.assertEqual(decisions[0]["supersedes"], "Launch Friday")
             self.assertEqual(tasks[0]["assignee"], "Alice")
+            self.assertEqual(tasks[0]["sync_status"], "pending")
+
+            store.update_derived_task_sync(
+                tasks[0]["id"],
+                provider="feishu",
+                sync_status="dry_run",
+                external_id="task-guid",
+                external_url="https://example.feishu.cn/task",
+                sync_payload={"summary": "Ship review doc"},
+            )
+            synced = store.list_derived_tasks("meeting-1")[0]
+
+            self.assertEqual(synced["external_provider"], "feishu")
+            self.assertEqual(synced["sync_status"], "dry_run")
+            self.assertEqual(synced["external_id"], "task-guid")
+            self.assertEqual(synced["external_url"], "https://example.feishu.cn/task")
+            self.assertEqual(synced["sync_payload"]["summary"], "Ship review doc")
+            self.assertIsNotNone(synced["synced_at"])

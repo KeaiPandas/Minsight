@@ -18,6 +18,10 @@
 - `Workbench`
   Business-facing meeting demo with readable minutes, evidence, tasks, and alerts
 
+External integrations also live in Lab. For example, `derived_tasks -> Feishu
+Tasks` sync is implemented as a Lab integration sink, so Core stays independent
+from Feishu auth, CLI, and API concerns.
+
 ## Quick Start
 
 Configure at least one OpenAI-compatible model profile in `.env`, then run:

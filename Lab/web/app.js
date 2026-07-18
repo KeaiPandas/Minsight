@@ -81,6 +81,11 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function parseMaybeJson(value) {
+  if (typeof value !== "string") return value;
+  try { return JSON.parse(value); } catch { return value; }
+}
+
 function renderJsonDetails(title, value, open = false) {
   return `
     <details class="json-details" ${open ? "open" : ""}>
@@ -417,6 +422,76 @@ function renderTasks(tasks) {
       </div>
     </article>
   `).join("");
+}
+
+const SYNC_LABEL = { pending: "待同步", dry_run: "预览·未写入", synced: "已同步", failed: "同步失败" };
+
+function renderTasks(tasks) {
+  if (!tasks?.length) {
+    tasksBoard.className = "case-table empty";
+    tasksBoard.textContent = "运行会议后，这里显示派生的待办任务。";
+    return;
+  }
+  tasksBoard.className = "case-table";
+  tasksBoard.innerHTML = `
+    <div class="task-toolbar">
+      <button class="run-button sync-button" id="syncFeishuButton">同步到飞书</button>
+      <span>默认 <strong>预览模式（dry-run）</strong>，不写入飞书；如需真实写入，设 <code>MINSIGHT_FEISHU_SYNC_MODE=lark_cli</code>（经 lark-cli 授权）。</span>
+    </div>
+    ${tasks.map((task) => {
+      const status = task.sync_status || "pending";
+      const payload = task.sync_payload_json ?? task.sync_payload;
+      return `
+      <article class="case-item">
+        <div class="case-top">
+          <div>
+            <div class="case-variant">派生任务</div>
+            <div class="case-title">${escapeHtml(task.title)}</div>
+          </div>
+          <div class="sync-badge ${escapeHtml(status)}">${escapeHtml(SYNC_LABEL[status] || status)}</div>
+        </div>
+        <div class="judge-text">
+          <strong>负责人：</strong> ${escapeHtml(task.assignee || "未指派")}<br/>
+          <strong>截止：</strong> ${escapeHtml(task.due_date || "未设置")}<br/>
+          <strong>证据：</strong> ${escapeHtml(task.source_evidence || "-")}<br/>
+          ${task.external_url ? `<strong>飞书：</strong> <a class="feishu-link" href="${escapeHtml(task.external_url)}" target="_blank" rel="noreferrer">打开飞书任务 ↗</a><br/>` : ""}
+          ${task.sync_error ? `<strong>同步错误：</strong> ${escapeHtml(task.sync_error)}<br/>` : ""}
+        </div>
+        ${payload ? renderJsonDetails("查看将写入飞书的内容（payload）", parseMaybeJson(payload)) : ""}
+      </article>`;
+    }).join("")}
+  `;
+  const button = document.getElementById("syncFeishuButton");
+  if (button) {
+    button.addEventListener("click", () => syncFeishuTasks());
+  }
+}
+
+async function syncFeishuTasks() {
+  if (!activeMeetingId) {
+    demoMeta.textContent = "请先打开一个会议，再同步待办到飞书。";
+    return;
+  }
+  const button = document.getElementById("syncFeishuButton");
+  if (button) { button.disabled = true; button.textContent = "同步中…"; }
+  try {
+    demoMeta.textContent = "正在同步待办到飞书…";
+    const result = await fetchJson("/api/demo/meeting/sync-feishu", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ meeting_id: activeMeetingId }),
+    });
+    const total = result.tasks?.length || 0;
+    const failed = (result.tasks || []).filter((task) => task.status === "failed").length;
+    const modeText = result.mode === "lark_cli" ? "已写入飞书" : "预览完成（dry-run，未写入）";
+    demoMeta.textContent = failed
+      ? `飞书同步：${modeText}，共 ${total} 条，其中 ${failed} 条失败。`
+      : `飞书同步：${modeText}，共处理 ${total} 条。`;
+    await loadMeeting(activeMeetingId);
+  } catch (error) {
+    demoMeta.textContent = `飞书同步失败：${error.message}`;
+    if (button) { button.disabled = false; button.textContent = "同步到飞书"; }
+  }
 }
 
 function renderAlerts(alerts) {
