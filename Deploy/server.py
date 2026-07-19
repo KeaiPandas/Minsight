@@ -91,7 +91,19 @@ def build_handler(runtime, web_root=None):
                 return self._send_json({"error": str(exc)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
         def do_DELETE(self):
-            return self._send_json({"error": "not found"}, status=HTTPStatus.NOT_FOUND)
+            parsed = urlparse(self.path)
+            if parsed.path != "/api/demo/meeting":
+                return self._send_json({"error": "not found"}, status=HTTPStatus.NOT_FOUND)
+            meeting_id = parse_qs(parsed.query).get("id", [None])[0]
+            if not meeting_id:
+                return self._send_json({"error": "missing meeting id"}, status=HTTPStatus.BAD_REQUEST)
+            deleted = runtime.delete_demo_meeting(meeting_id)
+            if not deleted:
+                return self._send_json({"error": "meeting not found"}, status=HTTPStatus.NOT_FOUND)
+            thread = MEETING_THREADS.pop(meeting_id, None)
+            if thread and thread.is_alive():
+                pass
+            return self._send_json({"meeting_id": meeting_id, "deleted": True})
 
         @staticmethod
         def _is_benchmark_path(path):

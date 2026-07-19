@@ -134,6 +134,9 @@ class WorkbenchRuntime:
             "alerts": alerts,
         }
 
+    def delete_demo_meeting(self, meeting_id):
+        return self.store().delete_meeting(meeting_id)
+
     @staticmethod
     def _public_decisions(decisions):
         public = []

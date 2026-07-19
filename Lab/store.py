@@ -497,6 +497,17 @@ class BenchmarkStore:
             ).fetchone()
         return self._decode_meeting_row(row) if row else None
 
+    def delete_meeting(self, meeting_id):
+        with closing(self._connect()) as conn, conn:
+            conn.execute("DELETE FROM meeting_actions WHERE meeting_id = ?", (meeting_id,))
+            conn.execute("DELETE FROM meeting_decisions WHERE meeting_id = ?", (meeting_id,))
+            conn.execute("DELETE FROM derived_tasks WHERE meeting_id = ?", (meeting_id,))
+            deleted = conn.execute(
+                "DELETE FROM meetings WHERE meeting_id = ?",
+                (meeting_id,),
+            ).rowcount
+        return deleted > 0
+
     def list_meeting_actions(self, meeting_id):
         with closing(self._connect()) as conn:
             rows = conn.execute(

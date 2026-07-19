@@ -167,6 +167,47 @@ class DeployWorkbenchRuntimeTests(unittest.TestCase):
             self.assertIn("server restarted", running["error_message"])
             self.assertEqual(completed["status"], "completed")
 
+    def test_runtime_deletes_meeting_and_local_assets(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "deploy.sqlite"
+
+            def fake_v2(_case, _llm):
+                return {
+                    "participants": [],
+                    "key_points": [],
+                    "action_items": [
+                        {
+                            "task": "Send launch plan",
+                            "owner": "Alice",
+                            "due": "2026-07-20",
+                            "evidence": "Alice: I will send the launch plan.",
+                        }
+                    ],
+                    "decisions": [
+                        {
+                            "decision": "Use Base as decision archive",
+                            "supersedes": None,
+                            "evidence": "We will archive decisions in Base.",
+                        }
+                    ],
+                }
+
+            runtime = WorkbenchRuntime(
+                db_path=str(db_path),
+                load_cases_fn=lambda _scenario: [],
+                v2_extractor_factory=lambda _plain: ("langgraph", fake_v2),
+                llm_factory=lambda: object(),
+            )
+            created = runtime.run_demo(title="Delete demo", transcript="meeting transcript")
+            meeting_id = created["meeting"]["meeting_id"]
+
+            self.assertTrue(runtime.delete_demo_meeting(meeting_id))
+            self.assertIsNone(runtime.get_demo_meeting_details(meeting_id))
+            self.assertEqual(runtime.store().list_meeting_actions(meeting_id), [])
+            self.assertEqual(runtime.store().list_meeting_decisions(meeting_id), [])
+            self.assertEqual(runtime.store().list_derived_tasks(meeting_id), [])
+            self.assertFalse(runtime.delete_demo_meeting(meeting_id))
+
 
 if __name__ == "__main__":
     unittest.main()

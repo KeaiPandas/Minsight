@@ -20,6 +20,7 @@ from Deploy.server import build_handler
 class FakeWorkbenchRuntime:
     def __init__(self):
         self.created_meeting_id = "meeting-1"
+        self.deleted = set()
 
     def list_demo_cases(self):
         return [
@@ -49,7 +50,7 @@ class FakeWorkbenchRuntime:
         return self.get_demo_meeting_details(meeting_id)
 
     def get_demo_meeting_details(self, meeting_id):
-        if meeting_id != self.created_meeting_id:
+        if meeting_id != self.created_meeting_id or meeting_id in self.deleted:
             return None
         return {
             "meeting": {"meeting_id": meeting_id, "title": "Demo", "status": "completed"},
@@ -64,6 +65,12 @@ class FakeWorkbenchRuntime:
 
     def sync_demo_decisions_to_feishu_base(self, meeting_id, mode=None, force=False):
         return {"meeting_id": meeting_id, "mode": mode or "dry_run", "force": force, "decisions": []}
+
+    def delete_demo_meeting(self, meeting_id):
+        if meeting_id != self.created_meeting_id or meeting_id in self.deleted:
+            return False
+        self.deleted.add(meeting_id)
+        return True
 
 
 class DeployServerTests(unittest.TestCase):
@@ -125,6 +132,23 @@ class DeployServerTests(unittest.TestCase):
                 urllib.request.urlopen(f"{base_url}/api/demo/meeting?id=meeting-1").read().decode("utf-8")
             )
             self.assertEqual(details["meeting"]["status"], "completed")
+
+    def test_workbench_meeting_can_be_deleted(self):
+        for base_url in self.serve():
+            request = urllib.request.Request(
+                f"{base_url}/api/demo/meeting?id=meeting-1",
+                method="DELETE",
+            )
+            deleted = json.loads(urllib.request.urlopen(request).read().decode("utf-8"))
+            self.assertEqual(deleted, {"meeting_id": "meeting-1", "deleted": True})
+
+            with self.assertRaises(urllib.error.HTTPError) as raised:
+                urllib.request.urlopen(f"{base_url}/api/demo/meeting?id=meeting-1")
+            self.assertEqual(raised.exception.code, 404)
+
+            with self.assertRaises(urllib.error.HTTPError) as raised:
+                urllib.request.urlopen(request)
+            self.assertEqual(raised.exception.code, 404)
 
 
 if __name__ == "__main__":

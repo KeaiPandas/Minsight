@@ -146,6 +146,25 @@ button {
   color: var(--brand-dark);
 }
 
+.sample-button {
+  align-self: end;
+  background: rgba(255, 253, 248, 0.92);
+  border-color: var(--line);
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+  color: var(--muted);
+  font: 800 16px Arial, sans-serif;
+  min-height: 54px;
+  padding: 0 18px;
+  white-space: nowrap;
+}
+
+.sample-button:hover {
+  background: #fff7ed;
+  border-color: #e7cbb8;
+  color: var(--brand-dark);
+}
+
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -222,6 +241,20 @@ blockquote {
 .meeting-row-meta { color: var(--muted); font: 13px Arial, sans-serif; }
 .meeting-row-side { display: flex; align-items: center; gap: 12px; }
 .meeting-row .chev { color: var(--brand); font-size: 24px; line-height: 1; }
+.delete-meeting {
+  background: #f8e4da;
+  border: 1px solid #edc5b4;
+  color: var(--brand-dark);
+  font: 800 13px Arial, sans-serif;
+  padding: 8px 12px;
+}
+.delete-meeting:hover {
+  background: #f2d3c3;
+}
+.delete-meeting:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
 
 /* ---------- 详情头 + 返回 ---------- */
 .detail-head {

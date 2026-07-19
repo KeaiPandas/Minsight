@@ -128,11 +128,38 @@ async function loadMeetings() {
         </div>
         <div class="meeting-row-side">
           <span class="pill ${statusKind(meeting.status)}">${escapeHtml(statusText(meeting.status))}</span>
+          <button class="delete-meeting" data-meeting-id="${escapeHtml(meeting.meeting_id)}" type="button">删除</button>
           <span class="chev">›</span>
         </div>
       </a>
     `).join("")
     : "暂无会议记录，先运行一次会议。";
+  document.querySelectorAll(".delete-meeting").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      deleteMeeting(button.dataset.meetingId, button).catch((error) => {
+        $("meta").textContent = `删除失败：${error.message}`;
+      });
+    });
+  });
+}
+
+async function deleteMeeting(meetingId, button) {
+  if (!meetingId) return;
+  const confirmed = window.confirm("删除这条会议记录？本地纪要、待办和决策记录都会删除。");
+  if (!confirmed) return;
+  if (button) {
+    button.disabled = true;
+    button.textContent = "删除中";
+  }
+  await requestJson(`/api/demo/meeting?id=${encodeURIComponent(meetingId)}`, { method: "DELETE" });
+  if (state.meetingId === meetingId) {
+    state.meetingId = null;
+    state.meetingData = null;
+    location.hash = "#/";
+  }
+  await loadMeetings();
 }
 
 /* ---------------- 详情渲染 ---------------- */
