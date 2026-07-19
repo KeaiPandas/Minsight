@@ -40,6 +40,10 @@ Its core flow is:
   Multi-agent LangGraph extractor.
 - `Lab/`
   Standalone benchmark runner, persistence layer, judge flow, and frontend console.
+- `Deploy/`
+  Production-facing workbench entrypoint. It exposes meeting extraction,
+  readable minutes, evidence, derived tasks, decision sync, and health checks,
+  but intentionally does not expose Lab benchmark APIs or benchmark UI.
 - `PRD/`
   Product and design documents.
 
@@ -51,6 +55,12 @@ Its core flow is:
 - Lab is decoupled from Core except for public extractor and shared scenario/model utilities.
 - Lab runtime now owns benchmark lifecycle through `Lab/runtime.py`.
 - Lab stores benchmark runs in SQLite by default.
+- Deploy owns the first V4 production boundary through `Deploy/server.py`.
+- Deploy runtime owns the production workbench lifecycle through
+  `Deploy/runtime.py`.
+- Deploy currently reuses Lab store/integrations as a bridge, while keeping Lab
+  benchmark runtime, benchmark HTTP routes, and benchmark frontend out of the
+  deployable surface.
 
 ## Current Public Seams
 
@@ -60,17 +70,24 @@ Its core flow is:
   Implemented by `Lab/runtime.py`
 - `Lab SQLite store`
   Implemented by `Lab/store.py`
+- `Deploy Workbench HTTP API`
+  Implemented by `Deploy/server.py`
+- `Deploy workbench runtime`
+  Implemented by `Deploy/runtime.py`
 
 ## Current Status
 
 - The stale `v2.pipeline` dependency has been removed from Lab.
 - The frontend control path has been simplified to one benchmark mode.
 - Automated tests now protect the three Lab public seams.
+- Deploy has a separate V4 workbench-only entrypoint and tests that assert
+  benchmark APIs are not exposed.
 
 ## Preferred Architectural Direction
 
 - Keep Core focused on extraction seams.
 - Keep Lab focused on evaluation seams.
+- Keep Deploy focused on production workbench seams.
 - Keep tests on public seams only:
-  HTTP API, benchmark runtime, and persistence.
+  HTTP API, benchmark runtime, deploy runtime boundary, and persistence.
 - Prefer deeper modules with fewer cross-file jumps on the critical path.

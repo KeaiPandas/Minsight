@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minsight 会议工作台</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">M</span>
+          <div class="brand-copy">
+            <strong>Minsight</strong>
+            <span>会议结构化工作台</span>
+          </div>
+        </div>
+        <span class="badge">Deploy</span>
+      </header>
+
+      <!-- ============ 列表视图 ============ -->
+      <div id="listView" class="view">
+        <section class="hero">
+          <p class="eyebrow">Minsight Deploy</p>
+          <h1>把会议转写变成结构化会议记录</h1>
+          <p class="muted">运行一次正式 Agent，会议会进入下方列表；点开任意一条即可查看纪要、待办、决策与跨会议提示。</p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">运行一次正式 Agent</p>
+              <h2>输入会议转写或选择样例</h2>
+            </div>
+            <span id="statusPill" class="pill">空闲</span>
+          </div>
+
+          <div class="form-grid">
+            <label>
+              <span>样例会议</span>
+              <select id="caseSelect"></select>
+            </label>
+            <button id="loadCaseButton" class="secondary">载入样例</button>
+            <label class="wide">
+              <span>会议标题</span>
+              <input id="titleInput" type="text" placeholder="例如：周会 / 决策评审 / 客户同步" />
+            </label>
+            <label class="full">
+              <span>会议转写</span>
+              <textarea id="transcriptInput" placeholder="在这里粘贴会议转写文本。"></textarea>
+            </label>
+          </div>
+          <button id="runButton" class="primary">运行 Minsight Agent</button>
+          <p id="meta" class="muted"></p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">会议记录</p>
+              <h2>最近会议</h2>
+            </div>
+            <span id="meetingCount" class="pill"></span>
+          </div>
+          <div id="meetingsBoard" class="meeting-list empty">暂无会议记录，先运行一次会议。</div>
+        </section>
+      </div>
+
+      <!-- ============ 详情视图 ============ -->
+      <div id="detailView" class="view" hidden>
+        <div class="detail-head">
+          <button id="backButton" class="secondary back">← 返回列表</button>
+          <div class="detail-title-wrap">
+            <p class="eyebrow">会议详情</p>
+            <h1 id="detailTitle">会议详情</h1>
+            <span id="detailMeta" class="muted"></span>
+          </div>
+          <span id="detailStatus" class="pill">—</span>
+        </div>
+
+        <nav class="detail-tabs" role="tablist">
+          <button class="dtab active" data-tab="minutes" role="tab">可读纪要</button>
+          <button class="dtab" data-tab="tasks" role="tab">派生待办</button>
+          <button class="dtab" data-tab="decisions" role="tab">决策与证据</button>
+          <button class="dtab" data-tab="alerts" role="tab">跨会议提示</button>
+        </nav>
+
+        <section class="panel dtab-panel" data-panel="minutes">
+          <div id="minutesBoard" class="empty">运行后展示结构化纪要。</div>
+        </section>
+        <section class="panel dtab-panel" data-panel="tasks" hidden>
+          <div id="tasksBoard" class="empty">运行后展示待办和飞书同步入口。</div>
+        </section>
+        <section class="panel dtab-panel" data-panel="decisions" hidden>
+          <div id="decisionsBoard" class="empty">运行后展示决策和原文证据。</div>
+        </section>
+        <section class="panel dtab-panel" data-panel="alerts" hidden>
+          <div id="alertsBoard" class="empty">运行后展示重复待办或决策反复提示。</div>
+        </section>
+      </div>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
