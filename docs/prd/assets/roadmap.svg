@@ -1,0 +1,102 @@
+<svg width="100%" viewBox="0 0 1200 470" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" role="img">
+  <title>Minsight 产品迭代路线图 V1→V4</title>
+  <desc>V1 基线（已完成）、V2 多 Agent 工作流（当前）、V3 飞书集成（规划）、V4 上线部署（规划）。</desc>
+
+  <rect x="0" y="0" width="1200" height="470" fill="#faf6ef"/>
+  <text x="40" y="42" font-size="26" font-weight="600" fill="#221f1a">Minsight 产品迭代路线图</text>
+  <text x="40" y="68" font-size="14" fill="#8a7f71">从单次调用基线，到多 Agent 工作流，再到飞书集成与上线部署</text>
+
+  <!-- timeline axis -->
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#c9bfae"/>
+    </marker>
+  </defs>
+  <line x1="165" y1="112" x2="1050" y2="112" stroke="#d8cdb9" stroke-width="2" marker-end="url(#arw)"/>
+
+  <!-- nodes -->
+  <g font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">
+    <circle cx="165" cy="112" r="14" fill="#2f6f5e"/><text x="165" y="117">1</text>
+    <circle cx="455" cy="112" r="16" fill="#c0552f" stroke="#f7e6dd" stroke-width="4"/><text x="455" y="117">2</text>
+    <circle cx="745" cy="112" r="14" fill="#6b7a86"/><text x="745" y="117">3</text>
+    <circle cx="1035" cy="112" r="14" fill="#6b7a86"/><text x="1035" y="117">4</text>
+  </g>
+  <!-- connectors node -> card -->
+  <g stroke="#d8cdb9" stroke-width="2">
+    <line x1="165" y1="126" x2="165" y2="150"/>
+    <line x1="455" y1="128" x2="455" y2="150"/>
+    <line x1="745" y1="126" x2="745" y2="150"/>
+    <line x1="1035" y1="126" x2="1035" y2="150"/>
+  </g>
+
+  <!-- ===== V1 card ===== -->
+  <g>
+    <rect x="40" y="150" width="250" height="292" rx="16" fill="#fffdf9" stroke="#e7ddcb"/>
+    <rect x="40" y="150" width="6" height="292" rx="3" fill="#2f6f5e"/>
+    <text x="64" y="188" font-size="22" font-weight="700" fill="#2f6f5e">V1</text>
+    <rect x="196" y="170" width="70" height="24" rx="12" fill="#e9f1ee"/>
+    <text x="231" y="187" font-size="12" font-weight="700" fill="#2f6f5e" text-anchor="middle">已完成</text>
+    <text x="64" y="214" font-size="14.5" font-weight="600" fill="#221f1a">基线 · 单次调用</text>
+    <g font-size="12.8" fill="#524a40">
+      <text x="64" y="248">· 一个 prompt 直出 JSON</text>
+      <text x="64" y="276">· 作为归档 baseline</text>
+      <text x="64" y="304">· 无归一 / 无校验 / 无评测</text>
+    </g>
+    <text x="64" y="420" font-size="11.5" fill="#8a7f71">对应：作业 Task 02 诊断对象</text>
+  </g>
+
+  <!-- ===== V2 card (current, emphasized) ===== -->
+  <g>
+    <rect x="330" y="150" width="250" height="292" rx="16" fill="#fffdf9" stroke="#c0552f" stroke-width="2"/>
+    <rect x="330" y="150" width="6" height="292" rx="3" fill="#c0552f"/>
+    <text x="354" y="188" font-size="22" font-weight="700" fill="#9a3f20">V2</text>
+    <rect x="470" y="170" width="96" height="24" rx="12" fill="#f7e6dd"/>
+    <text x="518" y="187" font-size="12" font-weight="700" fill="#9a3f20" text-anchor="middle">当前 · 原型</text>
+    <text x="354" y="214" font-size="14.5" font-weight="600" fill="#221f1a">多 Agent 抽取工作流</text>
+    <g font-size="12.8" fill="#524a40">
+      <text x="354" y="248">· LangGraph + 三档模型路由</text>
+      <text x="354" y="276">· pydantic 契约 + 自修复 + 证据</text>
+      <text x="354" y="304">· Lab 评测闭环 + 可视化前端</text>
+    </g>
+    <text x="354" y="420" font-size="11.5" fill="#8a7f71">对应：Task 03/04/05 已交付</text>
+  </g>
+
+  <!-- ===== V3 card ===== -->
+  <g>
+    <rect x="620" y="150" width="250" height="292" rx="16" fill="#fffdf9" stroke="#e7ddcb"/>
+    <rect x="620" y="150" width="6" height="292" rx="3" fill="#6b7a86"/>
+    <text x="644" y="188" font-size="22" font-weight="700" fill="#4f5c66">V3</text>
+    <rect x="796" y="170" width="60" height="24" rx="12" fill="#eef1f3"/>
+    <text x="826" y="187" font-size="12" font-weight="700" fill="#4f5c66" text-anchor="middle">规划</text>
+    <text x="644" y="214" font-size="14.5" font-weight="600" fill="#221f1a">飞书生态集成</text>
+    <g font-size="12.8" fill="#524a40">
+      <text x="644" y="248">· 上游拉飞书会议转写+名册</text>
+      <text x="644" y="276">· 下游写多维表格/任务+提醒</text>
+      <text x="644" y="304">· 跨会议去重 / 冲突检测</text>
+    </g>
+    <text x="644" y="420" font-size="11.5" fill="#8a7f71">对应：飞书生态 · 工具 API</text>
+  </g>
+
+  <!-- ===== V4 card ===== -->
+  <g>
+    <rect x="910" y="150" width="250" height="292" rx="16" fill="#fffdf9" stroke="#e7ddcb"/>
+    <rect x="910" y="150" width="6" height="292" rx="3" fill="#6b7a86"/>
+    <text x="934" y="188" font-size="22" font-weight="700" fill="#4f5c66">V4</text>
+    <rect x="1086" y="170" width="60" height="24" rx="12" fill="#eef1f3"/>
+    <text x="1116" y="187" font-size="12" font-weight="700" fill="#4f5c66" text-anchor="middle">规划</text>
+    <text x="934" y="214" font-size="14.5" font-weight="600" fill="#221f1a">上线 · 私有化/云部署</text>
+    <g font-size="12.8" fill="#524a40">
+      <text x="934" y="248">· 容器化 + K8s/Serverless</text>
+      <text x="934" y="276">· TOS 原文 + Postgres/pgvector</text>
+      <text x="934" y="304">· outbox 分发 + 可观测 + CI/CD</text>
+    </g>
+    <text x="934" y="420" font-size="11.5" fill="#8a7f71">对应：云原生 · 私有化部署</text>
+  </g>
+
+  <!-- legend -->
+  <g font-size="12" fill="#8a7f71">
+    <circle cx="48" cy="456" r="6" fill="#2f6f5e"/><text x="60" y="460">已完成</text>
+    <circle cx="140" cy="456" r="6" fill="#c0552f"/><text x="152" y="460">当前</text>
+    <circle cx="212" cy="456" r="6" fill="#6b7a86"/><text x="224" y="460">规划</text>
+  </g>
+</svg>

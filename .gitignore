@@ -55,5 +55,5 @@ desktop.ini
 .codex/
 .claude/
 
-# Local design docs (kept out of the repo)
-docs/
+# Local-only annotation guide
+docs/annotation_rubric.md
