@@ -1,0 +1,25 @@
+.git
+.gitignore
+.dockerignore
+
+# Local secrets and runtime configuration.
+.env
+*.env
+Core/.env
+Lab/.env
+Deploy/.env
+
+# Local databases and generated benchmark artifacts.
+*.sqlite
+*.sqlite3
+*.db
+Lab/results/
+
+# Python and frontend build/cache output.
+**/__pycache__/
+**/*.py[cod]
+.pytest_cache/
+node_modules/
+
+# Local-only documents are intentionally not part of the deploy image.
+docs/

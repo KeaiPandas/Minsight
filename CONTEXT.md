@@ -58,9 +58,13 @@ Its core flow is:
 - Deploy owns the first V4 production boundary through `Deploy/server.py`.
 - Deploy runtime owns the production workbench lifecycle through
   `Deploy/runtime.py`.
-- Deploy currently reuses Lab store/integrations as a bridge, while keeping Lab
-  benchmark runtime, benchmark HTTP routes, and benchmark frontend out of the
-  deployable surface.
+- Deploy now has a minimal Docker packaging path, a production environment
+  template, and a smoke check that asserts benchmark routes remain hidden.
+- Deploy no longer imports the Lab store. It uses `Deploy/store.py` for
+  workbench persistence and `Deploy/integrations/` for production Feishu sync
+  adapters.
+- Deploy sets `MINSIGHT_CONFIG_MODE=production` by default, which prevents Core
+  and Feishu adapters from loading local `.env` files.
 
 ## Current Public Seams
 
@@ -74,6 +78,10 @@ Its core flow is:
   Implemented by `Deploy/server.py`
 - `Deploy workbench runtime`
   Implemented by `Deploy/runtime.py`
+- `Deploy workbench store`
+  Implemented by `Deploy/store.py`
+- `Deploy package entrypoint`
+  Implemented by `Deploy/Dockerfile` and `Deploy/scripts/smoke_check.py`
 
 ## Current Status
 
@@ -82,6 +90,10 @@ Its core flow is:
 - Automated tests now protect the three Lab public seams.
 - Deploy has a separate V4 workbench-only entrypoint and tests that assert
   benchmark APIs are not exposed.
+- Deploy has a first Docker smoke-deploy path with `.dockerignore` protection
+  for local secrets, SQLite files, benchmark results, and ignored docs.
+- Deploy has Aliyun single-host deployment templates for systemd, Nginx,
+  production env validation, and bootstrap.
 
 ## Preferred Architectural Direction
 

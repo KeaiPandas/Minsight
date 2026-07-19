@@ -1,0 +1,18 @@
+[Unit]
+Description=Minsight Deploy Workbench
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=minsight
+Group=minsight
+WorkingDirectory=/opt/minsight
+EnvironmentFile=/etc/minsight/minsight.env
+ExecStartPre=/opt/minsight/.venv/bin/python Deploy/scripts/validate_env.py
+ExecStart=/opt/minsight/.venv/bin/python Deploy/server.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

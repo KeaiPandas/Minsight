@@ -29,6 +29,10 @@ Add a separate `Deploy/` project as the production-facing boundary.
   Workbench-only list/detail frontend.
 - `Deploy/tests/`
   Public seam tests for deploy HTTP behavior and runtime contracts.
+- `Deploy/store.py`
+  Workbench-only SQLite persistence, with no benchmark tables.
+- `Deploy/integrations/`
+  Production-facing Feishu sync adapters.
 
 `Deploy/` intentionally does not expose:
 
@@ -78,22 +82,53 @@ phase = interrupted
 
 This is a V4 demo hardening guard, not the final production job architecture.
 
+## Deployment Skeleton
+
+Deploy now includes a minimal container packaging path:
+
+- `Deploy/Dockerfile`
+  Builds the workbench-only service and starts `Deploy/server.py`.
+- `Deploy/requirements.txt`
+  Captures the deploy runtime Python dependencies without installing Lab test
+  tooling.
+- `Deploy/.env.production.example`
+  Documents production environment variables and defaults Feishu sync to
+  `dry_run`.
+- `Deploy/scripts/smoke_check.py`
+  Verifies `/health`, demo case listing, and that benchmark-only routes remain
+  hidden.
+- `Deploy/scripts/validate_env.py`
+  Fails fast when production env vars are missing, placeholder-like, or not in
+  production mode.
+- `Deploy/ops/`
+  Contains systemd and Nginx templates for Aliyun ECS / Lightweight Application
+  Server deployment.
+- `.dockerignore`
+  Keeps local `.env`, SQLite databases, benchmark results, cache files, and
+  ignored docs out of the image build context.
+
+This is intentionally a smoke-deploy skeleton, not final infrastructure. It
+keeps SQLite mounted at `/data` for the V4 prototype while preserving the path
+to later Postgres and durable worker hardening.
+
 ## Consequences
 
 - The deployable surface is smaller and safer.
 - Lab benchmark functionality can continue evolving without being published.
 - Frontend list/detail workbench can depend on explicit field contracts.
 - Stale in-memory jobs no longer leave the UI stuck in "running" forever.
-- Deploy still reuses `Lab/store.py` and `Lab/integrations/` as a temporary
-  bridge.
+- Docker builds now have a clear production entrypoint and a smoke check for
+  route isolation.
+- Deploy no longer imports `Lab/store.py` or copies `Lab/` into the Docker
+  image.
+- Production mode no longer loads local `.env` files from Core, the repository
+  root, or Lab.
 
 ## Follow-Ups
 
-- Move store code out of `Lab/` into a production/shared package.
-- Move Feishu integrations out of `Lab/` into a production/shared package.
 - Replace in-memory threads with a durable job queue or worker model.
-- Add Docker and production environment-variable-only configuration.
 - Add Postgres store implementation and migrations.
+- Add HTTPS/TLS termination instructions after the deployment domain is chosen.
 
 ## Validation
 

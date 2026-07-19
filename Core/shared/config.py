@@ -18,6 +18,7 @@ _ENV_CANDIDATES = [
     os.path.join(_WORKSPACE_ROOT, ".env"),
     os.path.join(_WORKSPACE_ROOT, "Lab", ".env"),
 ]
+_PRODUCTION_MODES = {"production", "prod", "deploy"}
 
 # 默认路由策略：这是“架构策略”而非具体模型；可被 .env 的 AGENT_* 覆盖
 _DEFAULT_AGENT_PROFILE = {
@@ -46,9 +47,19 @@ def _load_one_dotenv(path):
                 os.environ[key] = val
 
 
+def config_mode():
+    return os.getenv("MINSIGHT_CONFIG_MODE", "development").strip().lower()
+
+
+def env_file_candidates(mode=None):
+    if (mode or config_mode()) in _PRODUCTION_MODES:
+        return []
+    return list(_ENV_CANDIDATES)
+
+
 def load_dotenv():
     """按候选路径加载 .env：优先 Core/.env，其次工作区根目录，再其次 Lab/.env。"""
-    for path in _ENV_CANDIDATES:
+    for path in env_file_candidates():
         if os.path.exists(path):
             _load_one_dotenv(path)
             return path

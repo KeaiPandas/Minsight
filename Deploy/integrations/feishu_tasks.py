@@ -13,9 +13,9 @@ import subprocess
 
 
 PROVIDER = "feishu"
-LAB_ROOT = Path(__file__).resolve().parents[1]
-WORKSPACE_ROOT = LAB_ROOT.parent
-_ENV_PATHS = [LAB_ROOT / ".env", WORKSPACE_ROOT / ".env"]
+DEPLOY_ROOT = Path(__file__).resolve().parents[1]
+WORKSPACE_ROOT = DEPLOY_ROOT.parent
+_ENV_PATHS = [DEPLOY_ROOT / ".env", WORKSPACE_ROOT / ".env"]
 _ENV_LOADED = False
 
 

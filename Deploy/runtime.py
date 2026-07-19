@@ -16,9 +16,10 @@ from pathlib import Path
 DEPLOY_ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = DEPLOY_ROOT.parent
 CORE_ROOT = PROJECT_ROOT / "Core"
-LAB_ROOT = PROJECT_ROOT / "Lab"
 
-for path in (CORE_ROOT, LAB_ROOT):
+os.environ.setdefault("MINSIGHT_CONFIG_MODE", "production")
+
+for path in (PROJECT_ROOT, CORE_ROOT):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
@@ -26,9 +27,17 @@ from shared.dataio import load_cases  # noqa: E402
 from shared.llm import LLMClient  # noqa: E402
 from v2.graph import extract_v2_graph  # noqa: E402
 
-from integrations.feishu_base import build_decision_sink  # noqa: E402
-from integrations.feishu_tasks import build_task_sink  # noqa: E402
-from store import BenchmarkStore  # noqa: E402
+try:
+    from .integrations.feishu_base import build_decision_sink  # noqa: E402
+    from .integrations.feishu_tasks import build_task_sink  # noqa: E402
+except ImportError:  # pragma: no cover - script execution path
+    from integrations.feishu_base import build_decision_sink  # noqa: E402
+    from integrations.feishu_tasks import build_task_sink  # noqa: E402
+
+try:
+    from .store import WorkbenchStore  # noqa: E402
+except ImportError:  # pragma: no cover - script execution path
+    from store import WorkbenchStore  # noqa: E402
 
 
 def _timestamp():
@@ -55,7 +64,7 @@ class WorkbenchRuntime:
         self.decision_sink_factory = decision_sink_factory or build_decision_sink
 
     def store(self):
-        store = BenchmarkStore(self.db_path)
+        store = WorkbenchStore(self.db_path)
         store.init_schema()
         return store
 
